@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "valio"
+version = "0.1.0a1"
+description = "Pluggable validation library that supports dataclasses, async validation, async tasks, validation extension, regex validation, dynamic documentation and much more. "
+authors = ["bitplorer"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+typingx = "^0.6.0"
+phonenumbers = "^8.12.50"
+
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+black = "^21.6b0"
+mypy = "^0.942"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
