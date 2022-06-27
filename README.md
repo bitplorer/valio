@@ -1,8 +1,8 @@
-# Valito - Progressive Validation Library. 
+# Valio - Progressive Validation Library. 
 Validation that goes along with  dataclasses
 
-<a href="https://pypi.org/project/valito" target="_blank">
-    <img src="https://img.shields.io/pypi/v/valito?color=%2334D058&label=pypi%20package" alt="Package version">
+<a href="https://pypi.org/project/valio" target="_blank">
+    <img src="https://img.shields.io/pypi/v/valio?color=%2334D058&label=pypi%20package" alt="Package version">
 </a>
 
 ## Installation
@@ -10,9 +10,9 @@ Validation that goes along with  dataclasses
 <div class="termy">
 
 ```console
-$ pip install valito
+$ pip install valio
 ---> 100%
-Successfully installed valito
+Successfully installed valio
 ```
 
 ## Example
@@ -128,7 +128,7 @@ class RegisterUser(object):
      password: str = password_field.validator
      confirm_password: str = confirm_password_field.validator
     
-user = User(name="acoconutcup", ...) 
+user = User(name="....", ...) 
 
 # if user contains invalid values and debug is True on any field, it throws an error for all those debugged fields.
 
