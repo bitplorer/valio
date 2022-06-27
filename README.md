@@ -1,8 +1,8 @@
-# Valito - Progressive Validation Library. 
+# Valio - Progressive Validation Library. 
 Validation that goes along with  dataclasses
 
-<a href="https://pypi.org/project/valito" target="_blank">
-    <img src="https://img.shields.io/pypi/v/valito?color=%2334D058&label=pypi%20package" alt="Package version">
+<a href="https://pypi.org/project/valio" target="_blank">
+    <img src="https://img.shields.io/pypi/v/valio?color=%2334D058&label=pypi%20package" alt="Package version">
 </a>
 
 ## Installation
@@ -10,9 +10,9 @@ Validation that goes along with  dataclasses
 <div class="termy">
 
 ```console
-$ pip install valito
+$ pip install valio
 ---> 100%
-Successfully installed valito
+Successfully installed valio
 ```
 
 ## Example
@@ -22,8 +22,8 @@ Successfully installed valito
 ```python 
 from dataclasses import dataclass
 import bcrypt
-import valito
-from valito import (StringValidator,
+import valio
+from valio import (StringValidator,
                     AadhaarCardValidator, 
                     PhoneNumberValidator, 
                     EmailIDValidator, 
@@ -48,14 +48,14 @@ class User(object):
 # throws an error in console else it defaults to None.
 
 # now we can create the UserValidator itself that validates the User class.
-valito.Validator.register(User)  # noqa
+valio.Validator.register(User)  # noqa
 
-class UserValidator(valito.Validator):
+class UserValidator(valio.Validator):
     annotation = typing.Union[User, None]
 
 # this UserValidator can be directly used or used further to create a UserField
 
-class UserField(valito.Field):
+class UserField(valio.Field):
     validator = UserValidator
     
 # now we can use pre and post validation with this field.
@@ -63,13 +63,13 @@ class UserField(valito.Field):
 @dataclass
 class RegisterUser(object):
     user_field = UserField(logger=False, debug=True)
-    password_field = valito.StringField(
+    password_field = valio.StringField(
         min_length=6,
         max_length=30,
         debug=True,
         required=True
     )
-    confirm_password_field = valito.StringField(
+    confirm_password_field = valio.StringField(
         min_length=6,
         max_length=30,
         debug=True,
@@ -128,17 +128,17 @@ class RegisterUser(object):
      password: str = password_field.validator
      confirm_password: str = confirm_password_field.validator
     
-user = User(name="acoconutcup", ...) 
+user = User(name="....", ...) 
 
 # if user contains invalid values and debug is True on any field, it throws an error for all those debugged fields.
 
 ```
 
 ## Regex 
-Valito supports regex too out of the box.
+Valio supports regex too out of the box.
 
 ```python 
-from valito import Pattern, StartOfString, WordBoundary
+from valio import Pattern, StartOfString, WordBoundary
 from pyparsing import Regex
 
 hyphen = Pattern(r"-", alias="-")
