@@ -1,8 +1,8 @@
-# Valio - Progressive Validation Library. 
+# Valito - Progressive Validation Library. 
 Validation that goes along with  dataclasses
 
-<a href="https://pypi.org/project/valio" target="_blank">
-    <img src="https://img.shields.io/pypi/v/valio?color=%2334D058&label=pypi%20package" alt="Package version">
+<a href="https://pypi.org/project/valito" target="_blank">
+    <img src="https://img.shields.io/pypi/v/valito?color=%2334D058&label=pypi%20package" alt="Package version">
 </a>
 
 ## Installation
@@ -10,12 +10,12 @@ Validation that goes along with  dataclasses
 <div class="termy">
 
 ```console
-$ pip install valio
+$ pip install valito
 ---> 100%
-Successfully installed valio
+Successfully installed valito
 ```
 
- ## Example
+## Example
   
 </div>
   
@@ -170,3 +170,4 @@ print(Regex(date_.pattern).re_match("date: 2021/01/20"))
 print(Regex(date_.pattern).re_match("date : 01-20-2021112"))
 
 ```
+
