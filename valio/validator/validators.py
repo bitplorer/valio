@@ -1491,26 +1491,26 @@ async def main(*args):
 
 
 class IntegerValidator(Validator):
-    multiple_of: INT = TypeValidator(logger=False)
-    min_value: INT = TypeValidator(logger=False)
-    value: INT = TypeValidator(logger=False)
-    max_value: INT = TypeValidator(logger=False)
+    multiple_of: INT = TypeValidator(logger=False, debug=True)
+    min_value: INT = TypeValidator(logger=False, debug=True)
+    value: INT = TypeValidator(logger=False, debug=True)
+    max_value: INT = TypeValidator(logger=False, debug=True)
     annotation = INT
 
 
 class FloatValidator(Validator):
-    multiple_of: FLOAT = TypeValidator(logger=False)
-    min_value: FLOAT = TypeValidator(logger=False)
-    value: FLOAT = TypeValidator(logger=False)
-    max_value: FLOAT = TypeValidator(logger=False)
+    multiple_of: FLOAT = TypeValidator(logger=False, debug=True)
+    min_value: FLOAT = TypeValidator(logger=False, debug=True)
+    value: FLOAT = TypeValidator(logger=False, debug=True)
+    max_value: FLOAT = TypeValidator(logger=False, debug=True)
     annotation = FLOAT
 
 
 class DecimalValidator(Validator):
-    multiple_of: DECIMAL = TypeValidator(logger=False)
-    min_value: DECIMAL = TypeValidator(logger=False)
-    value: DEBUG = TypeValidator(logger=False)
-    max_value: DECIMAL = TypeValidator(logger=False)
+    multiple_of: DECIMAL = TypeValidator(logger=False, debug=True)
+    min_value: DECIMAL = TypeValidator(logger=False, debug=True)
+    value: DEBUG = TypeValidator(logger=False, debug=True)
+    max_value: DECIMAL = TypeValidator(logger=False, debug=True)
     annotation = DECIMAL
 
 
@@ -1519,16 +1519,16 @@ class BooleanValidator(Validator):
 
 
 class BytesValidator(Validator):
-    min_value: BYTES = TypeValidator(logger=False)
-    value: BYTES = TypeValidator(logger=False)
-    max_value: BYTES = TypeValidator(logger=False)
+    min_value: BYTES = TypeValidator(logger=False, debug=True)
+    value: BYTES = TypeValidator(logger=False, debug=True)
+    max_value: BYTES = TypeValidator(logger=False, debug=True)
     annotation = BYTES
 
 
 class StringValidator(Validator):
-    min_value: STR = TypeValidator(logger=False)
-    value: STR = TypeValidator(logger=False)
-    max_value: STR = TypeValidator(logger=False)
+    min_value: STR = TypeValidator(logger=False, debug=True)
+    value: STR = TypeValidator(logger=False, debug=True)
+    max_value: STR = TypeValidator(logger=False, debug=True)
     annotation = STR
 
     def _validate_min_value(self, instance, value):
@@ -1564,9 +1564,9 @@ class DateValidator(Validator):
     ind_date_with_backslash = dd & backslash & mm & backslash & yyyy
     ind_date = ind_date_with_colon | ind_date_with_hyphen | ind_date_with_backslash
 
-    min_value: DATE_TIME_DELTA = TypeValidator(logger=False)
-    value: DATE_TIME_DELTA = TypeValidator(logger=False)
-    max_value: DATE_TIME_DELTA = TypeValidator(logger=False)
+    min_value: DATE_TIME_DELTA = TypeValidator(logger=False, debug=True)
+    value: DATE_TIME_DELTA = TypeValidator(logger=False, debug=True)
+    max_value: DATE_TIME_DELTA = TypeValidator(logger=False, debug=True)
     annotation = DATE_TIME_DELTA
 
     def __init__(
@@ -1731,7 +1731,7 @@ class PhoneNumberValidator(StringValidator):
 @dataclass
 class PathValidator(StringValidator):
     annotation = PATH
-    path_exists: BOOL = TypeValidator(logger=False)
+    path_exists: BOOL = TypeValidator(logger=False, debug=True)
 
     def __init__(
             self,
