@@ -2079,7 +2079,7 @@ class TupleValidator(Validator):
     # print(w)
     # w.xyz = "1"
     # z = LOL(xyz="Stay")
-    print(z)
+    # print(z)
     # l.xyz = "Go"
     # print(l)
 
