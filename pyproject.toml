@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "valio"
-version = "0.1.0a2"
+version = "0.1.0a3"
 description = "Pluggable validation library that supports dataclasses, async validation, async tasks, validation extension, regex validation, dynamic documentation and much more. "
 authors = ["bitplorer"]
 
