@@ -366,10 +366,10 @@ class TypeValidator(ValidateProperty):
     ...         max_value: VALUE = None,
     ...     ):
     ...
-    ...         if min_value is not None and self.min_value is None:
+    ...         if min_value is not None:
     ...             self.min_value = min_value
     ...
-    ...         if max_value is not None and self.max_value is None:
+    ...         if max_value is not None:
     ...             self.max_value = max_value
     ...
     ...         if all([min_value, max_value]) and max_value < min_value:
@@ -419,23 +419,33 @@ class RequiredValidator(ValidateProperty):
             name: NAME = None,
             **kwargs,
     ): 
-        
-        self.required = required
+        if required is not None:
+            self.required = required
         super(RequiredValidator, self).__init__(debug=debug, doc=doc, name=name, **kwargs)
-        if self.required is not None:
-            if self.doc is not None:
-                self.doc += f", required: {self.required}"
-            else:
-                self.doc = f"required: {self.required}"
-
+        try:
+            if self.required is not None:
+                if self.doc is not None:
+                    self.doc += f", required: {self.required}"
+                else:
+                    self.doc = f"required: {self.required}"
+        except KeyError as ke:
+            pass
+        
     def validate(self, instance=None, value=None):
         self._validate_required(instance, value)
 
     def _validate_required(self, instance, value):  # noqa
-        if logger := self.logger:
-            logger.info(f"{self.name}: Required: {self.required}")
-
-        if self.required is not None and self.required:
+        required = None
+        try:
+            if self.required is not None and self.required:
+                required = self.required
+        except KeyError as ke:
+            pass
+            
+        if required:
+            if logger := self.logger:
+                logger.info(f"{self.name}: Required: {required}")
+                
             if value is None:
                 raise ValueError(
                     f"{self.name} requires value, got {value} instead"
@@ -453,27 +463,37 @@ class PatternValidator(ValidateProperty):
             doc: DOC = None,
             name: NAME = None,
             **kwargs,
-    ):
-        self.pattern = pattern
+    ):  
+        if pattern is not None:
+            self.pattern = pattern
+            
         super(PatternValidator, self).__init__(debug=debug, doc=doc, name=name, **kwargs)
-        if self.pattern is not None:
-            if self.doc is not None:
-                self.doc += f", pattern: " \
+        try:
+            if self.pattern is not None:
+                if self.doc is not None:
+                    self.doc += f", pattern: " \
+                                f"{self.pattern if not isinstance(self.pattern, regexps.PatternType) else self.pattern.alias}"
+                else:
+                    self.doc = f"pattern: " \
                             f"{self.pattern if not isinstance(self.pattern, regexps.PatternType) else self.pattern.alias}"
-            else:
-                self.doc = f"pattern: " \
-                           f"{self.pattern if not isinstance(self.pattern, regexps.PatternType) else self.pattern.alias}"
-
+        except KeyError as ke:
+            pass
+        
     def validate(self, instance=None, value=None):
         self._validate_pattern(instance, value)
 
     def _validate_pattern(self, instance, value):  # noqa
-        if self.pattern is not None:
-            pattern = (
-                self.pattern.pattern
-                if isinstance(self.pattern, regexps.PatternType)
-                else self.pattern
-            )
+        pattern = None 
+        try:
+            if self.pattern is not None:
+                pattern = (
+                    self.pattern.pattern
+                    if isinstance(self.pattern, regexps.PatternType)
+                    else self.pattern
+                )
+        except KeyError as ke:
+            pass
+        if pattern:
             if logger := self.logger:
                 logger.info(f"{self.name}: Regexp: {self.pattern}")
 
@@ -500,30 +520,50 @@ class ReassignValidator(ValidateProperty):
             name: NAME = None,
             **kwargs,
     ):  
-
-        self.reassign = reassign
-        self.number_of_assignment = 0
+        self.number_of_assignment = None
+        if reassign is not None:
+            self.reassign = reassign
+        
         super(ReassignValidator, self).__init__(debug=debug, doc=doc, name=name, **kwargs)
-
-        if self.reassign is not None:
-            if self.doc is not None:
-                self.doc += f", reassign: {self.reassign}"
-            else:
-                self.doc = f"reassign: {self.reassign}"
-
+        try:
+            if self.reassign is not None:
+                if self.doc is not None:
+                    self.doc += f", reassign: {self.reassign}"
+                else:
+                    self.doc = f"reassign: {self.reassign}"
+        except KeyError as ke:
+            pass
+    
+    def pre_set(self, obj, value):
+        if id(obj) not in self.__dict__:
+            self.__dict__[id(obj)] = 0
+        if self.number_of_assignment is None:
+            self.number_of_assignment = 0
+            
+        return super().pre_set(obj, value)
+        
     def post_set(self, obj, value):
-        self.number_of_assignment += 1
-        super(ReassignValidator, self).post_set(obj=obj, value=value)
+        if id(obj) in self.__dict__:
+            self.__dict__[id(obj)] += 1
+            self.number_of_assignment += 1
+            
+        return super(ReassignValidator, self).post_set(obj=obj, value=value)
 
     def validate(self, instance=None, value=None):
         self._validate_reassignment(instance=instance, value=value)
 
     def _validate_reassignment(self, instance, value):  # noqa
-        if logger := self.logger:
-            logger.info(f"{self.name}: Reassign: {self.reassign}")
-
-        if self.reassign is not None and not self.reassign:
-            if self.number_of_assignment >= 1:
+        reassign = None
+        try:
+            reassign = self.reassign
+        except KeyError as ke:
+            pass 
+        
+        if reassign is not None and not reassign:
+            if logger := self.logger:
+                logger.info(f"{self.name}: Reassign: {reassign}")
+                
+            if id(instance) in self.__dict__ and self.__dict__[id(instance)] >= 1:
                 raise AttributeError(
                     f"{self.name} can be assignend only once, "
                     f"attempted to reassign with value '{value}' instead"
@@ -541,28 +581,38 @@ class MultipleValidator(ValidateProperty):
             doc: DOC = None,
             name: NAME = None,
             **kwargs
-    ):
-        self.multiple_of = multiple_of
+    ):  
+        if multiple_of is not None:
+            self.multiple_of = multiple_of
         super(MultipleValidator, self).__init__(debug=debug, doc=doc, name=name, **kwargs)
-        if self.multiple_of is not None:
-            if self.doc is not None:
-                self.doc += f", multiple_of: {self.multiple_of!r}"
-            else:
-                self.doc = f"multiple_of: {self.multiple_of!r}"
-
+        try:
+            if self.multiple_of is not None:
+                if self.doc is not None:
+                    self.doc += f", multiple_of: {self.multiple_of!r}"
+                else:
+                    self.doc = f"multiple_of: {self.multiple_of!r}"
+        except KeyError as ke:
+            pass
+        
     def validate(self, instance=None, value=None):
         self._validate_multiple_of(instance=instance, value=value)
 
     def _validate_multiple_of(self, instance, value):
-        if logger := self.logger:
-            logger.info(f"{self.name}: Multiple of :{self.multiple_of}")
+        multiple_of = None
+        try:
+            multiple_of = self.multiple_of
+        except KeyError as ke:
+            pass
+        
+        if multiple_of is not None and multiple_of:
+            if logger := self.logger:
+                logger.info(f"{self.name}: Multiple of :{multiple_of}")
 
-        if value is not None:
-            if self.multiple_of is not None and self.multiple_of:
+            if value is not None:
                 if not (value//self.multiple_of) == 0:
                     raise ValueError(
                         f"{self.name} "
-                        f"expect the value multiple of {self.multiple_of}, "
+                        f"expect the value multiple of {multiple_of}, "
                         f"got {value} instead"
                     )
 
@@ -582,33 +632,41 @@ class MinValueValidator(ValidateProperty):
     ):
         if all([min_value, gt]):
             raise ValueError("min_value and gt both can't be initialized, select one")
-        else:
-            self.min_value = None
-            
+    
         if min_value is not None:
             self.min_value = min_value
         if gt is not None:
             self.min_value = gt
         super(MinValueValidator, self).__init__(debug=debug, doc=doc, name=name, **kwargs)
-
-        if self.min_value is not None:
-            if self.doc is not None:
-                self.doc += f", min_value: {self.min_value!r}"
-            else:
-                self.doc = f"min_value: {self.min_value!r}"
-
+        try:
+            if self.min_value is not None:
+                if self.doc is not None:
+                    self.doc += f", min_value: {self.min_value!r}"
+                else:
+                    self.doc = f"min_value: {self.min_value!r}"
+        except KeyError as ke:
+            pass
+        
     def validate(self, instance=None, value=None):
         self._validate_min_value(instance, value)
 
     def _validate_min_value(self, instance, value):
-        if logger := self.logger:
-            logger.info(f"{self.name}: MinValue: min_value = {self.min_value}")
-        if value is not None:
+        min_value = None
+        try:
             if self.min_value is not None and self.min_value:
-                if value < self.min_value:
+                min_value = self.min_value
+        except KeyError as ke:
+            pass
+        
+        if min_value is not None:
+            if logger := self.logger:
+                logger.info(f"{self.name}: MinValue: min_value = {min_value}")
+            
+            if value is not None:
+                if value < min_value:
                     raise ValueError(
                         f"{self.name} "
-                        f"expect the minimum value of {self.min_value}, "
+                        f"expect the minimum value of {min_value}, "
                         f"got {value} instead"
                     )
 
@@ -629,8 +687,7 @@ class MaxValueValidator(ValidateProperty):
 
         if all([max_value, lt]):
             raise ValueError(f"max_value and lt both can't be initialized, select one")
-        else:
-            self.max_value = None
+
         if max_value is not None:
             self.max_value = max_value
 
@@ -638,26 +695,35 @@ class MaxValueValidator(ValidateProperty):
             self.max_value = lt
 
         super(MaxValueValidator, self).__init__(debug=debug, doc=doc, name=name, **kwargs)
-
-        if self.max_value is not None:
-            if self.doc is not None:
-                self.doc += f", max_value: {self.max_value!r}"
-            else:
-                self.doc = f"max_value: {self.max_value!r}"
-
+        try:
+            if self.max_value is not None:
+                if self.doc is not None:
+                    self.doc += f", max_value: {self.max_value!r}"
+                else:
+                    self.doc = f"max_value: {self.max_value!r}"
+        except KeyError as ke:
+            pass
+        
     def validate(self, instance=None, value=None):
         self._validate_max_value(instance, value)
 
     def _validate_max_value(self, instance, value):  # noqa
-        if logger := self.logger:
-            logger.info(f"{self.name}: MaxValue: " f"max_value = {self.max_value}")
-
-        if value is not None:
+        max_value = None
+        try:
             if self.max_value is not None and self.max_value:
-                if value > self.max_value:
+                max_value = self.max_value
+        except KeyError as ke:
+            pass
+        
+        if max_value is not None:
+            if logger := self.logger:
+                logger.info(f"{self.name}: MaxValue: " f"max_value = {max_value}")
+        
+            if value is not None:
+                if value > max_value:
                     raise ValueError(
                         f"{self.name} "
-                        f"expect the maximum value of {self.max_value}, "
+                        f"expect the maximum value of {max_value}, "
                         f"got {value} instead"
                     )
 
@@ -706,7 +772,8 @@ class ValueValidator(MinValueValidator, MaxValueValidator):
             if max_value < value:  # type: ignore
                 raise ValueError(f"{'value' if eq is None else 'eq'} can not be more than "
                                  f"{'max_value' if lt is None else 'lt'}")
-        self.value = value
+        if value is not None:
+            self.value = value
 
         super(ValueValidator, self).__init__(
             min_value=min_value,
@@ -716,27 +783,36 @@ class ValueValidator(MinValueValidator, MaxValueValidator):
             name=name,
             **kwargs,
         )
-        if self.value is not None:
-            if self.doc is not None:
-                self.doc += f", value: {self.value!r}"
-            else:
-                self.doc = f"value: {self.value!r}"
-
+        try:
+            if self.value is not None:
+                if self.doc is not None:
+                    self.doc += f", value: {self.value!r}"
+                else:
+                    self.doc = f"value: {self.value!r}"
+        except KeyError as ke:
+            pass
+        
     def validate(self, instance=None, value=None):
         self._validate_value(instance, value)
 
     def _validate_value(self, instance, value):
         self._validate_min_value(instance, value)
         self._validate_max_value(instance, value)
-        if logger := self.logger:
-            logger.info(f"{self.name}: Value: " f"value = {self.value}")
-
-        if value is not None:
+        of_value = None
+        try:
             if self.value is not None and self.value:
-                if value != self.value:
+                of_value = self.value
+        except KeyError as ke:
+            pass
+        if of_value is not None:
+            if logger := self.logger:
+                logger.info(f"{self.name}: Value: " f"value = {self.value}")
+
+            if value is not None:
+                if value != of_value:
                     raise ValueError(
                         f"{self.name} "
-                        f"expect the value {self.value}, "
+                        f"expect the value {of_value}, "
                         f"got {value} as value instead"
                     )
 
@@ -753,29 +829,39 @@ class MinLengthValidator(ValidateProperty):
             name: NAME = None,
             **kwargs,
     ):
-        self.min_length = min_length
+        if min_length is not None:
+            self.min_length = min_length
         super(MinLengthValidator, self).__init__(debug=debug, doc=doc, name=name, **kwargs)
-
-        if self.min_length is not None:
-            if self.doc is not None:
-                self.doc += f", min_length: {self.min_length}"
-            else:
-                self.doc = f"min_length: {self.min_length}"
-
+        try:
+            if self.min_length is not None:
+                if self.doc is not None:
+                    self.doc += f", min_length: {self.min_length}"
+                else:
+                    self.doc = f"min_length: {self.min_length}"
+        except KeyError as ke:
+            pass 
+        
     def validate(self, instance=None, value=None):
         self._validate_min_length(instance, value)
 
     def _validate_min_length(self, instance, value):  # noqa
-        if logger := self.logger:
-            logger.info(f"{self.name}: MinLength: " f"min_length = {self.min_length}")
-
-        if value is not None:
-            value_length = len(value) if isinstance(value, str) else len(str(value))
+        min_length = None
+        try:
             if self.min_length is not None and self.min_length:
-                if value_length < self.min_length:
+                min_length = self.min_length
+        except KeyError as ke:
+            pass 
+        
+        if min_length is not None:
+            if logger := self.logger:
+                logger.info(f"{self.name}: MinLength: " f"min_length = {min_length}")
+
+            if value is not None:
+                value_length = len(value)
+                if value_length < min_length:
                     raise ValueError(
                         f"{self.name} "
-                        f"expect the value of minimum length {self.min_length}, "
+                        f"expect the value of minimum length {min_length}, "
                         f"got length {value_length} value instead"
                     )
 
@@ -792,29 +878,40 @@ class MaxLengthValidator(ValidateProperty):
             name: NAME = None,
             **kwargs,
     ):
-        self.max_length = max_length
+        if max_length is not None:
+            self.max_length = max_length
 
         super(MaxLengthValidator, self).__init__(debug=debug, doc=doc, name=name, **kwargs)
-        if self.max_length is not None:
-            if self.doc is not None:
-                self.doc += f", max_length: {self.max_length}"
-            else:
-                self.doc = f"max_length: {self.max_length}"
+        try:
+            if self.max_length is not None:
+                if self.doc is not None:
+                    self.doc += f", max_length: {self.max_length}"
+                else:
+                    self.doc = f"max_length: {self.max_length}"
+        except KeyError as ke:
+            pass
 
     def validate(self, instance=None, value=None):
         self._validate_max_length(instance, value)
 
     def _validate_max_length(self, instance, value):  # noqa
-        if logger := self.logger:
-            logger.info(f"{self.name}: MaxLength: " f"max_length = {self.max_length}")
-
-        if value is not None:
-            value_length = len(value) if isinstance(value, str) else len(str(value))
+        max_length = None 
+        try:
             if self.max_length is not None and self.max_length:
-                if value_length > self.max_length:
+                max_length = self.max_length
+        except KeyError as ke:
+            pass 
+        
+        if max_length is not None:
+            if logger := self.logger:
+                logger.info(f"{self.name}: MaxLength: " f"max_length = {max_length}")
+
+            if value is not None:
+                value_length = len(value)
+                if value_length > max_length:
                     raise ValueError(
                         f"{self.name} "
-                        f"expect the value of maximum length {self.max_length}, "
+                        f"expect the value of maximum length {max_length}, "
                         f"got length {value_length} value instead"
                     )
 
@@ -844,7 +941,8 @@ class LengthValidator(MinLengthValidator, MaxLengthValidator):
         if max_length is not None and length is not None:
             if max_length < length:  # type: ignore
                 raise ValueError(f"length can not be more than max_length")
-        self.length = length
+        if length is not None:
+            self.length = length
         super(LengthValidator, self).__init__(
             min_length=min_length,
             max_length=max_length,
@@ -853,31 +951,42 @@ class LengthValidator(MinLengthValidator, MaxLengthValidator):
             name=name,
             **kwargs,
         )
-        if self.length is not None:
-            if self.doc is not None:
-                self.doc += f", length: {self.length}"
-            else:
-                self.doc = f"length: {self.length}"
-
+        try:
+            if self.length is not None:
+                if self.doc is not None:
+                    self.doc += f", length: {self.length}"
+                else:
+                    self.doc = f"length: {self.length}"
+        except KeyError as ke:
+            pass 
+        
     def validate(self, instance=None, value=None):
         self._validate_length(instance, value)
 
     def _validate_length(self, instance, value):
         self._validate_min_length(instance=instance, value=value)
         self._validate_max_length(instance=instance, value=value)
-        if logger := self.logger:
-            logger.info(f"{self.name}: Length: " f"length = {self.length}")
-
-        if value is not None:
-            value_length = len(value) if isinstance(value, str) else len(str(value))
-
+        
+        length = None 
+        
+        try:
             if self.length is not None and self.length:
-                if value_length != self.length:
-                    raise ValueError(
-                        f"{self.name} "
-                        f"expect the value of length {self.length}, "
-                        f"got length {value_length} value instead"
-                    )
+                length = self.length
+        except KeyError as ke:
+            pass 
+        
+        if length is not None:
+            if logger := self.logger:
+                logger.info(f"{self.name}: Length: " f"length = {length}")
+
+            if value is not None:
+                value_length = len(value)
+                if value_length != length:
+                        raise ValueError(
+                            f"{self.name} "
+                            f"expect the value of length {length}, "
+                            f"got length {value_length} value instead"
+                        )
 
 
 @dataclass
@@ -898,9 +1007,9 @@ class ExpiryValidator(ValidateProperty):
         date_pattern = PatternValidator(pattern=dates, debug=debug, name="expiry")
         reassign_date = ReassignValidator(reassign=False, debug=debug, name="expiry")
         reassign_timeline = ReassignValidator(reassign=False, debug=debug, name="timeline")
-        if not any([expire_before, expire_on, expire_before]):
-            self.expiry = None
-            self.timeline = None
+        # if not any([expire_before, expire_on, expire_before]):
+        #     self.expiry = None
+        #     self.timeline = None
             
         if expire_after is not None:
             reassign_date.validate(value=expire_after)
@@ -930,12 +1039,15 @@ class ExpiryValidator(ValidateProperty):
             self.timeline = "before"
         
         super(ExpiryValidator, self).__init__(debug=debug, doc=doc, **kwargs)
-        if self.expiry is not None:
-            if self.doc is not None:
-                self.doc += f", expiry_{self.timeline}: {self.expiry}"
-            else:
-                self.doc = f"expiry_{self.timeline}: {self.expiry}"
-
+        try:
+            if self.expiry is not None:
+                if self.doc is not None:
+                    self.doc += f", expiry_{self.timeline}: {self.expiry}"
+                else:
+                    self.doc = f"expiry_{self.timeline}: {self.expiry}"
+        except KeyError as ke:
+            pass 
+        
     def validate(self, instance=None, value=None):
         self._validate_expiry(instance, value)
 
@@ -982,7 +1094,7 @@ class ExpiryValidator(ValidateProperty):
                 msg = "expiry condition not yet found"
                 raise ValueError(msg)
             if cond:
-                msg = f"{self.name} considered expired {self.timeline} {self.expiry}"
+                msg = f"{self.name} expired {self.timeline} {self.expiry}"
                 raise ValueError(msg)
 
 
@@ -998,26 +1110,36 @@ class ChoiceValidator(ValidateProperty):
             debug: BOOL = None,
             **kwargs
     ):
-
-        self.in_choice = in_choice
-        self.not_in_choice = not_in_choice
+        if in_choice is not None:
+            self.in_choice = in_choice
+        
+        if not_in_choice is not None:
+            self.not_in_choice = not_in_choice
+            
         super(ChoiceValidator, self).__init__(
             doc=doc,
             debug=debug,
             **kwargs
         )
-        if self.in_choice is not None:
-            if self.doc is not None:
-                self.doc += f", in_choice: {self.in_choice}"
-            else:
-                self.doc = f"in_choice: {self.in_choice}"
-
-        if self.not_in_choice is not None:
-            if self.doc is not None:
-                self.doc += f", not_in_choice: {self.not_in_choice}"
-            else:
-                self.doc = f"not_in_choice: {self.not_in_choice}"
-
+        
+        try:
+            if self.in_choice is not None:
+                if self.doc is not None:
+                    self.doc += f", in_choice: {self.in_choice}"
+                else:
+                    self.doc = f"in_choice: {self.in_choice}"
+        except KeyError as ke:
+            pass  
+        
+        try:
+            if self.not_in_choice is not None:
+                if self.doc is not None:
+                    self.doc += f", not_in_choice: {self.not_in_choice}"
+                else:
+                    self.doc = f"not_in_choice: {self.not_in_choice}"
+        except KeyError as ke:
+            pass 
+        
     def validate(self, instance=None, value=None):
         self._validate_choice(instance, value)
 
@@ -1026,52 +1148,70 @@ class ChoiceValidator(ValidateProperty):
         self._validate_not_in_choice(instance, value)
 
     def _validate_in_choice(self, instance, value):
-        if self.in_choice is not None:
+        in_choice = None 
+        try:
+            if self.in_choice is not None and self.in_choice:
+                in_choice = self.in_choice
+        except KeyError as ke:
+            pass
+        
+        if in_choice is not None:
             if value is not None:
-                if value not in self.in_choice:
+                if value not in in_choice:
                     raise ValueError(
-                        f"{self.name} expect values in {self.in_choice}, "
+                        f"{self.name} expect values in {in_choice}, "
                         f"got {value} as value instead"
                     )
 
     def _validate_not_in_choice(self, instance, value):
-        if self.not_in_choice is not None:
-            if value in self.not_in_choice:
+        not_in_choice = None 
+        try:
+            if self.not_in_choice is not None and self.not_in_choice:
+                not_in_choice = self.not_in_choice
+        except KeyError as ke:
+            pass
+        
+        if not_in_choice is not None:
+            if value in not_in_choice:
                 raise ValueError(
-                    f"{self.name} does not expect values in {self.not_in_choice}, "
+                    f"{self.name} does not expect values in {not_in_choice}, "
                     f"got {value} as value instead"
                 )
 
 
 @dataclass
 class AttributeValidator(ValidateProperty):
-    has_attribute: Union[list[STR], TypeValidator] = TypeValidator(logger=False)
+    has_attributes: Union[list[STR], TypeValidator] = TypeValidator(logger=False)
 
     def __init__(
             self,
-            has_attribute: list[STR],
+            has_attributes: list[STR],
             doc: DOC = None,
             debug: DEBUG = None,
             **kwargs,
     ):
-        self.has_attribute = has_attribute
+        if has_attributes is not None:
+            self.has_attributes = has_attributes
         super(AttributeValidator, self).__init__(doc=doc, debug=debug, **kwargs)
-        if self.has_attribute is not None:
-            if self.doc is not None:
-                self.doc += f", has_attributes={self.has_attribute}"
-            else:
-                self.doc = f"has_attributes={self.has_attribute}"
-
+        try:
+            if self.has_attributes is not None:
+                if self.doc is not None:
+                    self.doc += f", has_attributes={self.has_attributes}"
+                else:
+                    self.doc = f"has_attributes={self.has_attributes}"
+        except KeyError as ke:
+            pass 
+        
     def validate(self, instance=None, value=None):
         self._validate_attribute(instance=instance, value=value)
 
     def _validate_attribute(self, instance, value):
-        if self.has_attribute is not None:
+        if self.has_attributes is not None:
             if value is not None:
-                for attr in self.has_attribute:
+                for attr in self.has_attributes:
                     if not hasattr(value, attr):
                         raise AttributeError(f"{self.name} must have an attribute "
-                                             f"'{self.has_attribute}'")
+                                             f"'{self.has_attributes}'")
 
 
 @dataclass
@@ -1248,7 +1388,7 @@ class Validator(
             expire_before: DATE_TIME_DELTA = None,
             in_choice: CHOICE = None,
             not_in_choice: CHOICE = None,
-            has_attribute: STR = None,
+            has_attributes: list[STR] = None,
             task_interval: INT = None,
             cache_task: BOOL = True,
             debug: DEBUG = None,
@@ -1280,7 +1420,7 @@ class Validator(
             expire_before=expire_before,
             in_choice=in_choice,
             not_in_choice=not_in_choice,
-            has_attribute=has_attribute,
+            has_attributes=has_attributes,
             task_interval=task_interval,
             cache_task=cache_task,
             debug=debug,
@@ -1915,23 +2055,31 @@ class TupleValidator(Validator):
     annotation = TUPLE
 
 
-if __name__ == "__main__":
-    from cProfile import run
-    from dataclasses import dataclass
-    from datetime import datetime as dt
-    from timeit import timeit
-    @dataclass
-    class LOL(object):
-        xyz: str | Validator | None = Validator(
-            debug=True, 
-            logger=False, 
-            required=True, 
-            expire_after=dt(year=2022, month=6, day=28),   #"28/06/2022", # this  parameter is the costliest in performance
-            reassign=True,
-            in_choice=["Come", "Go"],
-            )
-    print(timeit('LOL(xyz="Come")', globals=globals(), number=1))
+# if __name__ == "__main__":
+    # from cProfile import run
+    # from dataclasses import dataclass
+    # from datetime import datetime as dt
+    # from timeit import timeit
+
+    # @dataclass
+    # class LOL(object):
+    #     xyz: str | Validator | None = Validator(
+    #         debug=True, 
+    #         logger=False, 
+    #         required=True, 
+    #         expire_after=dt(year=2022, month=7, day=28),   #"28/06/2022", # this  parameter is the costliest in performance
+    #         reassign=False,
+    #         in_choice=["Come", "Go", "Stay"],
+    #         )
+    # run('LOL(xyz="Come")')
+    # print(timeit('LOL(xyz="Come")', globals=globals(), number=100000))
     # l = LOL(xyz="Come")
+    # print(l)
+    # w = LOL(xyz="Go")
+    # print(w)
+    # w.xyz = "1"
+    # z = LOL(xyz="Stay")
+    print(z)
     # l.xyz = "Go"
     # print(l)
 

@@ -6,10 +6,7 @@
 
 import typing
 import unittest
-from ast import pattern
-from audioop import mul
 from dataclasses import dataclass
-from distutils.log import debug
 
 from valio import (PatternValidator, ReassignValidator, RequiredValidator,
                    TypeValidator, __version__)
@@ -165,8 +162,12 @@ class TestRequiredValidator(unittest.TestCase):
         self.class_required = TestRequiredClass
         
     def test_required_is_valid(self):
-        self.assertEqual(self.required_validator().required, None)    
-        self.assertEqual(self.required_validator(required=None).required, None)
+        with self.assertRaises(KeyError):
+            self.required_validator().required 
+        with self.assertRaises(KeyError):
+            self.required_validator(required=None).required 
+        self.required_validator()
+        self.required_validator(required=None)
         self.assertEqual(self.required_validator(required=True).required, True)
         self.assertEqual(self.required_validator(required=False).required, False)
 
@@ -388,8 +389,11 @@ class TestReassignValidator(unittest.TestCase):
             )
     
     def test_reassign_is_valid(self):
-        self.assertEqual(self.reassign_validator().reassign, None) 
-        self.assertEqual(self.reassign_validator(reassign=None).reassign, None) 
+        with self.assertRaises(KeyError):
+            self.reassign_validator().reassign
+        with self.assertRaises(KeyError):
+            self.reassign_validator(reassign=None).reassign
+        self.reassign_validator()
         self.assertEqual(self.reassign_validator(reassign=True).reassign, True)    
         self.assertEqual(self.reassign_validator(reassign=False).reassign, False) 
         
@@ -412,10 +416,12 @@ class TestReassignValidator(unittest.TestCase):
         self.assertEqual(self.class_reassigned.empty, "Reassign Empty Debug Empty")
         self.assertGreater(self.empty.number_of_assignment, 0)
         self.assertEqual(self.empty.number_of_assignment, 1)
+        self.assertGreater(self.empty.__dict__[id(self.class_reassigned)], 0)
+        self.assertEqual(self.empty.__dict__[id(self.class_reassigned)], 1)
         self.class_reassigned.empty = "Reassigned"
         self.assertEqual(self.class_reassigned.empty, "Reassigned")
-        self.assertGreater(self.empty.number_of_assignment, 0)
-        self.assertEqual(self.empty.number_of_assignment, 2)
+        self.assertGreater(self.empty.__dict__[id(self.class_reassigned)], 1)
+        self.assertEqual(self.empty.__dict__[id(self.class_reassigned)], 2)
         
         # this should not fail because of TypeError as no Type Checks happen 
         # in ReassignValidator
