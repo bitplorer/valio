@@ -1914,7 +1914,7 @@ class PathValidator(StringValidator):
             path_exists: BOOL = None,
             **kwargs
     ):
-        if path_exists is not None and self.path_exists is None:
+        if path_exists is not None:
             self.path_exists = path_exists
         super(PathValidator, self).__init__(
             default=default,

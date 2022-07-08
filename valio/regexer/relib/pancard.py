@@ -33,7 +33,7 @@
 
 import re
 
-from regexer.regexps import Pattern, WordBoundary
+from valio.regexer.regexps import Pattern, WordBoundary
 
 A_Z = list(chr(i) for i in range(65, 65 + 26))
 A_Z_MAP = dict(zip(A_Z, range(1, 26)))

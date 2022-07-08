@@ -16,7 +16,7 @@ from valio.validator.validators import MultipleValidator
 class TestVersion(unittest.TestCase):
     
     def test_version(self):
-        self.assertEqual(__version__, '0.1.0a3')
+        self.assertEqual(__version__, '0.1.0b2')
         
         
 
