@@ -1,3 +1,8 @@
+# Copyright (c) 2022 Valio
+# 
+# This software is released under the MIT License.
+# https://opensource.org/licenses/MIT
+
 """Information about PAN-Card.
     reference: https://stackoverflow.com/a/17684642
     1) The first three letters are sequence of alphabets from AAA to zzz
@@ -26,10 +31,14 @@
     PAN Card uses Luhn Mod 26 for correctness check.
 """
 
+import re
+
+from regexer.regexps import Pattern, WordBoundary
+
 A_Z = list(chr(i) for i in range(65, 65 + 26))
 A_Z_MAP = dict(zip(A_Z, range(1, 26)))
 
-__all__ = ['generate', 'verify']
+__all__ = ["is_valid_pan_number"]
 
 decimal_decoder = lambda s: int(s) if s not in A_Z_MAP else A_Z_MAP[s]
 decimal_encoder = lambda i: str(i)
@@ -103,9 +112,6 @@ def verify(string, base=10, decoder=decimal_decoder):
     return luhn_sum_mod_base(string, base=base, decoder=decoder) == 0
 
 
-def is_valid_pan_card(number):
-    return number
-
-
-if __name__ == '__main__':
-    print(generate("AILPA6312", base=7))
+def is_valid_pan_number(par):
+    re_exp = WordBoundary(Pattern(r"[A-Z]{3}[ABCFGHLJPTK]{1}[A-Z]{1}[0-9]{4}[A-Z]{1}"))
+    return any(re.findall(re_exp.pattern, par))

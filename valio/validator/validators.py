@@ -1052,50 +1052,57 @@ class ExpiryValidator(ValidateProperty):
         self._validate_expiry(instance, value)
 
     def _validate_expiry(self, instance, value):  # noqa
-        if logger := self.logger:
-            logger.info(f"{self.name}: Timer: expiry {self.timeline} = {self.expiry}")
+        expiry = None
+        try:
+            if self.expiry is not None and self.expiry:
+                expiry = self.expiry
+        except KeyError as ke:
+            pass
+        
+        if expiry is not None:
+            if logger := self.logger:
+                logger.info(f"{self.name}: Timer: expiry {self.timeline} = {expiry}")
 
-        if value is not None and self.expiry is not None:
-            expiry = self.expiry
-            if isinstance(expiry, str):
-                try:
-                    expiry = list(get_date(expiry))[0]["datetime"]
-                    if not isinstance(expiry, datetime.datetime):
-                        raise TypeError(
-                            f"something went wrong, "
-                            f"expect expiry to be a {datetime.datetime.__name__} type, "
-                            f"got {type(expiry).__name__} type instead"
-                        )
+            if value is not None:
+                if isinstance(expiry, str):
+                    try:
+                        expiry = list(get_date(expiry))[0]["datetime"]
+                        if not isinstance(expiry, datetime.datetime):
+                            raise TypeError(
+                                f"something went wrong, "
+                                f"expect expiry to be a {datetime.datetime.__name__} type, "
+                                f"got {type(expiry).__name__} type instead"
+                            )
+                        now = datetime.datetime.now(tz=expiry.tzinfo)
+
+                    except (TypeError, ValueError, AttributeError, Exception):
+                        msg = f"{self.name} expiry must have the pattern 'YYYY-MM-DD'"
+                        raise ValueError(msg)
+
+                elif isinstance(expiry, datetime.datetime):
                     now = datetime.datetime.now(tz=expiry.tzinfo)
-
-                except (TypeError, ValueError, AttributeError, Exception):
+                elif isinstance(expiry, datetime.date):
+                    expiry = datetime.datetime.combine(expiry, datetime.time.min)
+                    now = datetime.datetime.now(tz=expiry.tzinfo)
+                elif isinstance(expiry, datetime.time):
+                    expiry = datetime.datetime.combine(datetime.date.today(), expiry)
+                    now = datetime.datetime.now(tz=expiry.tzinfo)
+                else:
                     msg = f"{self.name} expiry must have the pattern 'YYYY-MM-DD'"
                     raise ValueError(msg)
 
-            elif isinstance(expiry, datetime.datetime):
-                now = datetime.datetime.now(tz=expiry.tzinfo)
-            elif isinstance(expiry, datetime.date):
-                expiry = datetime.datetime.combine(expiry, datetime.time.min)
-                now = datetime.datetime.now(tz=expiry.tzinfo)
-            elif isinstance(expiry, datetime.time):
-                expiry = datetime.datetime.combine(datetime.date.today(), expiry)
-                now = datetime.datetime.now(tz=expiry.tzinfo)
-            else:
-                msg = f"{self.name} expiry must have the pattern 'YYYY-MM-DD'"
-                raise ValueError(msg)
-
-            if self.timeline == "after":
-                cond = now > expiry
-            elif self.timeline == "on":
-                cond = now == expiry
-            elif self.timeline == "before":
-                cond = now < expiry
-            else:
-                msg = "expiry condition not yet found"
-                raise ValueError(msg)
-            if cond:
-                msg = f"{self.name} expired {self.timeline} {self.expiry}"
-                raise ValueError(msg)
+                if self.timeline == "after":
+                    cond = now > expiry
+                elif self.timeline == "on":
+                    cond = now == expiry
+                elif self.timeline == "before":
+                    cond = now < expiry
+                else:
+                    msg = "expiry condition not yet found"
+                    raise ValueError(msg)
+                if cond:
+                    msg = f"{self.name} expired {self.timeline} {self.expiry}"
+                    raise ValueError(msg)
 
 
 class ChoiceValidator(ValidateProperty):
@@ -1156,6 +1163,9 @@ class ChoiceValidator(ValidateProperty):
             pass
         
         if in_choice is not None:
+            if logger := self.logger:
+                logger.info(f"{self.name}: In-Choice: {in_choice}")
+
             if value is not None:
                 if value not in in_choice:
                     raise ValueError(
@@ -1172,6 +1182,9 @@ class ChoiceValidator(ValidateProperty):
             pass
         
         if not_in_choice is not None:
+            if logger := self.logger:
+                logger.info(f"{self.name}: Not-In-Choice: {not_in_choice}")
+
             if value in not_in_choice:
                 raise ValueError(
                     f"{self.name} does not expect values in {not_in_choice}, "
@@ -1206,12 +1219,22 @@ class AttributeValidator(ValidateProperty):
         self._validate_attribute(instance=instance, value=value)
 
     def _validate_attribute(self, instance, value):
-        if self.has_attributes is not None:
+        has_attributes = None 
+        try:
+            if self.has_attributes is not None and self.has_attributes:
+                has_attributes = self.has_attributes
+        except KeyError as ke:
+            pass
+        
+        if has_attributes is not None:
+            if logger := self.logger:
+                logger.info(f"{self.name}: Has Attributes: {has_attributes}")
+
             if value is not None:
-                for attr in self.has_attributes:
+                for attr in has_attributes:
                     if not hasattr(value, attr):
                         raise AttributeError(f"{self.name} must have an attribute "
-                                             f"'{self.has_attributes}'")
+                                             f"'{has_attributes}'")
 
 
 @dataclass
@@ -1672,16 +1695,23 @@ class StringValidator(Validator):
     annotation = STR
 
     def _validate_min_value(self, instance, value):
-        if logger := self.logger:
-            logger.info(
-                f"{self.name}: MinValue: 'min_value = {self.min_value}'"
-            )
-        if value is not None:
+        min_value = None
+        try:
             if self.min_value is not None and self.min_value:
-                if value < self.min_value:
+                min_value= self.min_value
+        except KeyError as ke:
+            pass 
+        
+        if min_value is not None:
+            if logger := self.logger:
+                logger.info(
+                    f"{self.name}: MinValue: 'min_value = {min_value}'"
+                )
+            if value is not None:
+                if value < min_value:
                     raise ValueError(
                         f"{self.name} "
-                        f"expect the start of string with {self.min_value} or above, "
+                        f"expect the start of string with {min_value} or above, "
                         f"got {value} as value instead"
                     ) from None
 
@@ -2026,7 +2056,7 @@ class PANCardValidator(Validator):
             if logger := self.logger:
                 logger.info(f"{self.name}: PAN Card")
 
-            if not relib.is_valid_aadhaar_card(value):
+            if not relib.is_valid_pan_number(value):
                 raise ValueError(f"{self.name} expects a valid PAN Card number, "
                                  f"{value} is not a valid number")
 

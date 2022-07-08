@@ -244,7 +244,7 @@ class NonDigitGroups(PatternType):
 class IfPreceding(PatternType):
     def __init__(
             self,
-            pattern: PatternType = None,
+            pattern: PatternType,
             count: int = None,
             count_min: int = None,
             count_max: int = None,
@@ -272,7 +272,7 @@ class IfPreceding(PatternType):
 class IfNotPreceding(PatternType):
     def __init__(
             self,
-            pattern: PatternType = None,
+            pattern: PatternType,
             count: int = None,
             count_min: int = None,
             count_max: int = None,
