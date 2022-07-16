@@ -162,10 +162,8 @@ class TestRequiredValidator(unittest.TestCase):
         self.class_required = TestRequiredClass
         
     def test_required_is_valid(self):
-        with self.assertRaises(KeyError):
-            self.required_validator().required 
-        with self.assertRaises(KeyError):
-            self.required_validator(required=None).required 
+        self.assertEqual(self.required_validator().required, None)
+        self.assertEqual(self.required_validator(required=None).required, None) 
         self.required_validator()
         self.required_validator(required=None)
         self.assertEqual(self.required_validator(required=True).required, True)
@@ -389,10 +387,8 @@ class TestReassignValidator(unittest.TestCase):
             )
     
     def test_reassign_is_valid(self):
-        with self.assertRaises(KeyError):
-            self.reassign_validator().reassign
-        with self.assertRaises(KeyError):
-            self.reassign_validator(reassign=None).reassign
+        self.assertEqual(self.reassign_validator().reassign, None)
+        self.assertEqual(self.reassign_validator(reassign=None).reassign, None)
         self.reassign_validator()
         self.assertEqual(self.reassign_validator(reassign=True).reassign, True)    
         self.assertEqual(self.reassign_validator(reassign=False).reassign, False) 

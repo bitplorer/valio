@@ -419,8 +419,7 @@ class RequiredValidator(ValidateProperty):
             name: NAME = None,
             **kwargs,
     ): 
-        if required is not None:
-            self.required = required
+        self.required = required
         super(RequiredValidator, self).__init__(debug=debug, doc=doc, name=name, **kwargs)
         try:
             if self.required is not None:
@@ -464,8 +463,7 @@ class PatternValidator(ValidateProperty):
             name: NAME = None,
             **kwargs,
     ):  
-        if pattern is not None:
-            self.pattern = pattern
+        self.pattern = pattern
             
         super(PatternValidator, self).__init__(debug=debug, doc=doc, name=name, **kwargs)
         try:
@@ -521,8 +519,7 @@ class ReassignValidator(ValidateProperty):
             **kwargs,
     ):  
         self.number_of_assignment = None
-        if reassign is not None:
-            self.reassign = reassign
+        self.reassign = reassign
         
         super(ReassignValidator, self).__init__(debug=debug, doc=doc, name=name, **kwargs)
         try:
@@ -582,8 +579,7 @@ class MultipleValidator(ValidateProperty):
             name: NAME = None,
             **kwargs
     ):  
-        if multiple_of is not None:
-            self.multiple_of = multiple_of
+        self.multiple_of = multiple_of
         super(MultipleValidator, self).__init__(debug=debug, doc=doc, name=name, **kwargs)
         try:
             if self.multiple_of is not None:
@@ -632,11 +628,9 @@ class MinValueValidator(ValidateProperty):
     ):
         if all([min_value, gt]):
             raise ValueError("min_value and gt both can't be initialized, select one")
-    
-        if min_value is not None:
-            self.min_value = min_value
-        if gt is not None:
-            self.min_value = gt
+        
+        self.min_value = min_value or gt
+        
         super(MinValueValidator, self).__init__(debug=debug, doc=doc, name=name, **kwargs)
         try:
             if self.min_value is not None:
@@ -687,12 +681,8 @@ class MaxValueValidator(ValidateProperty):
 
         if all([max_value, lt]):
             raise ValueError(f"max_value and lt both can't be initialized, select one")
-
-        if max_value is not None:
-            self.max_value = max_value
-
-        if lt is not None:
-            self.max_value = lt
+        
+        self.max_value = max_value or lt
 
         super(MaxValueValidator, self).__init__(debug=debug, doc=doc, name=name, **kwargs)
         try:
@@ -772,8 +762,7 @@ class ValueValidator(MinValueValidator, MaxValueValidator):
             if max_value < value:  # type: ignore
                 raise ValueError(f"{'value' if eq is None else 'eq'} can not be more than "
                                  f"{'max_value' if lt is None else 'lt'}")
-        if value is not None:
-            self.value = value
+        self.value = value
 
         super(ValueValidator, self).__init__(
             min_value=min_value,
@@ -829,8 +818,7 @@ class MinLengthValidator(ValidateProperty):
             name: NAME = None,
             **kwargs,
     ):
-        if min_length is not None:
-            self.min_length = min_length
+        self.min_length = min_length
         super(MinLengthValidator, self).__init__(debug=debug, doc=doc, name=name, **kwargs)
         try:
             if self.min_length is not None:
@@ -878,8 +866,7 @@ class MaxLengthValidator(ValidateProperty):
             name: NAME = None,
             **kwargs,
     ):
-        if max_length is not None:
-            self.max_length = max_length
+        self.max_length = max_length
 
         super(MaxLengthValidator, self).__init__(debug=debug, doc=doc, name=name, **kwargs)
         try:
@@ -941,8 +928,9 @@ class LengthValidator(MinLengthValidator, MaxLengthValidator):
         if max_length is not None and length is not None:
             if max_length < length:  # type: ignore
                 raise ValueError(f"length can not be more than max_length")
-        if length is not None:
-            self.length = length
+        
+        self.length = length
+        
         super(LengthValidator, self).__init__(
             min_length=min_length,
             max_length=max_length,
@@ -1007,9 +995,9 @@ class ExpiryValidator(ValidateProperty):
         date_pattern = PatternValidator(pattern=dates, debug=debug, name="expiry")
         reassign_date = ReassignValidator(reassign=False, debug=debug, name="expiry")
         reassign_timeline = ReassignValidator(reassign=False, debug=debug, name="timeline")
-        # if not any([expire_before, expire_on, expire_before]):
-        #     self.expiry = None
-        #     self.timeline = None
+        if not any([expire_before, expire_on, expire_before]):
+            self.expiry = None
+            self.timeline = None
             
         if expire_after is not None:
             reassign_date.validate(value=expire_after)
@@ -1117,11 +1105,8 @@ class ChoiceValidator(ValidateProperty):
             debug: BOOL = None,
             **kwargs
     ):
-        if in_choice is not None:
-            self.in_choice = in_choice
-        
-        if not_in_choice is not None:
-            self.not_in_choice = not_in_choice
+        self.in_choice = in_choice
+        self.not_in_choice = not_in_choice
             
         super(ChoiceValidator, self).__init__(
             doc=doc,
@@ -1194,17 +1179,16 @@ class ChoiceValidator(ValidateProperty):
 
 @dataclass
 class AttributeValidator(ValidateProperty):
-    has_attributes: Union[list[STR], TypeValidator] = TypeValidator(logger=False)
+    has_attributes: Union[list[STR], TypeValidator] = TypeValidator(logger=False, debug=True)
 
     def __init__(
             self,
-            has_attributes: list[STR],
+            has_attributes: list[STR] = None,
             doc: DOC = None,
             debug: DEBUG = None,
             **kwargs,
     ):
-        if has_attributes is not None:
-            self.has_attributes = has_attributes
+        self.has_attributes = has_attributes
         super(AttributeValidator, self).__init__(doc=doc, debug=debug, **kwargs)
         try:
             if self.has_attributes is not None:
@@ -1415,7 +1399,7 @@ class Validator(
             task_interval: INT = None,
             cache_task: BOOL = True,
             debug: DEBUG = None,
-            cache_validation: BOOL = None,
+            # cache_validation: BOOL = None,
             enable_async: BOOL = None,
             allow_validation: BOOL = True,
             **kwargs,
@@ -1460,11 +1444,11 @@ class Validator(
         self._custom_pre_delete_processor: typing.DefaultDict = defaultdict(list)
         self._custom_post_delete_processor: typing.DefaultDict = defaultdict(list)
         self.allow_validation = allow_validation
-        self.cache_validation = cache_validation
+        # self.cache_validation = cache_validation
 
-        if self.cache_validation:
-            self._validate_field = timed_lru_cache(seconds=10, maxsize=128)(self._validate_field)
-            self._async_validate_field = timed_lru_cache(seconds=10, maxsize=128)(self._async_validate_field)
+        # if self.cache_validation:
+        #     self._validate_field = timed_lru_cache(seconds=30, maxsize=128)(self._validate_field)
+        #     self._async_validate_field = timed_lru_cache(seconds=30, maxsize=128)(self._async_validate_field)
 
 
     def validate(self, instance=None, value=None):
