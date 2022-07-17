@@ -8,6 +8,7 @@ import typing
 import unittest
 from dataclasses import dataclass
 
+from toml import load
 from valio import (PatternValidator, ReassignValidator, RequiredValidator,
                    TypeValidator, __version__)
 from valio.validator.validators import MultipleValidator
@@ -16,7 +17,7 @@ from valio.validator.validators import MultipleValidator
 class TestVersion(unittest.TestCase):
     
     def test_version(self):
-        self.assertEqual(__version__, '0.1.0b3')
+        self.assertEqual(load('pyproject.toml')['tool']['poetry']['version'], __version__)
         
         
 
