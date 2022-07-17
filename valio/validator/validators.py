@@ -1369,7 +1369,7 @@ class Validator(
 
     enable_async: BOOL = TypeValidator(logger=False, debug=True)
     allow_validation: BOOL = TypeValidator(logger=False, debug=True)
-    cache_validation: BOOL = TypeValidator(logger=False, debug=True)
+    # cache_validation: BOOL = TypeValidator(logger=False, debug=True)
     default: DEFAULT = None
     
     def __init__(
