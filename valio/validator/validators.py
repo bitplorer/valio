@@ -87,6 +87,11 @@ __all__ = [
     "BooleanValidator",
     "BytesValidator",
     "StringValidator",
+    "HexShortColorValidator",
+    "HexLongColorValidator",
+    "HexColorValidator",
+    "RGBOrRGBAColorValidator",
+    "HSLOrHSLAColorValidator",
     "DateValidator",
     "PathValidator",
     "EmailIDValidator",
@@ -116,7 +121,8 @@ __all__ = [
     "VALUE",
     "DATE_TIME_DELTA",
     "TYPE",
-    "UUID_Type"
+    "UUID_Type",
+    "CHOICE"
 ]
 
 
@@ -1699,6 +1705,67 @@ class StringValidator(Validator):
                         f"got {value} as value instead"
                     ) from None
 
+class HexShortColorValidator(StringValidator):
+
+    def validate(self, instance=None, value=None):
+        self.add_validator(self._validate_hex_short_color_pattern,
+                           namespace=instance.__class__.__name__ if instance is not None else None)
+        super(HexShortColorValidator, self).validate(instance=instance, value=value)
+
+    def _validate_hex_short_color_pattern(self, instance, value):
+        if not re.compile(relib.r_hex_short.pattern, re.IGNORECASE).fullmatch(value):
+            raise ValueError(f"{self.name} got an invalid hex short color {value}") from None
+ 
+ 
+class HexLongColorValidator(StringValidator):
+
+    def validate(self, instance=None, value=None):
+        self.add_validator(self._validate_hex_long_color_pattern,
+                           namespace=instance.__class__.__name__ if instance is not None else None)
+        super(HexLongColorValidator, self).validate(instance=instance, value=value)
+
+    def _validate_hex_long_color_pattern(self, instance, value):
+        if not re.compile(relib.r_hex_long.pattern, re.IGNORECASE).fullmatch(value):
+            raise ValueError(f"{self.name} got an invalid hex long color {value}") from None
+ 
+
+class HexColorValidator(StringValidator):
+
+    def validate(self, instance=None, value=None):
+        self.add_validator(self._validate_hex_short_or_hex_long_color_pattern,
+                           namespace=instance.__class__.__name__ if instance is not None else None)
+        super(HexColorValidator, self).validate(instance=instance, value=value)
+
+    def _validate_hex_short_or_hex_long_color_pattern(self, instance, value):
+        if not re.compile((relib.r_hex_long | relib.r_hex_short).pattern, re.IGNORECASE).fullmatch(value):
+            raise ValueError(f"{self.name} got an invalid hex (short or long) color {value}") from None
+        
+
+class RGBOrRGBAColorValidator(StringValidator):
+
+    def validate(self, instance=None, value=None):
+        self.add_validator(self._validate_rgb_or_rgba_color_pattern,
+                           namespace=instance.__class__.__name__ if instance is not None else None)
+        super(RGBOrRGBAColorValidator, self).validate(instance=instance, value=value)
+
+    def _validate_rgb_or_rgba_color_pattern(self, instance, value):
+        if not re.compile((relib.r_rgb | relib.r_rbga).pattern, re.IGNORECASE).fullmatch(value):
+            raise ValueError(f"{self.name} got an invalid rgb or rbga color {value}") from None
+
+
+
+class HSLOrHSLAColorValidator(StringValidator):
+
+    def validate(self, instance=None, value=None):
+        self.add_validator(self._validate_hsl_or_hsla_color_pattern,
+                           namespace=instance.__class__.__name__ if instance is not None else None)
+        super(HSLOrHSLAColorValidator, self).validate(instance=instance, value=value)
+
+    def _validate_hsl_or_hsla_color_pattern(self, instance, value):
+        if not re.compile((relib.r_rgb | relib.r_rbga).pattern, re.IGNORECASE).fullmatch(value):
+            raise ValueError(f"{self.name} got an invalid hsl or hsla color {value}") from None
+
+
 
 class DateValidator(Validator):
     hyphen = regexps.Pattern(r"-", alias="-")
@@ -2070,22 +2137,23 @@ class TupleValidator(Validator):
 
 
 # if __name__ == "__main__":
-    # from cProfile import run
-    # from dataclasses import dataclass
-    # from datetime import datetime as dt
-    # from timeit import timeit
+#     from cProfile import run
+#     from dataclasses import dataclass
+#     from datetime import datetime as dt
+#     from timeit import timeit
 
-    # @dataclass
-    # class LOL(object):
-    #     xyz: str | Validator | None = Validator(
-    #         debug=True, 
-    #         logger=False, 
-    #         required=True, 
-    #         expire_after=dt(year=2022, month=7, day=28),   #"28/06/2022", # this  parameter is the costliest in performance
-    #         reassign=False,
-    #         in_choice=["Come", "Go", "Stay"],
-    #         )
-    # run('LOL(xyz="Come")')
+#     @dataclass
+#     class LOL(object):
+#         xyz: str | Validator | None = Validator(
+#             debug=True, 
+#             logger=False, 
+#             required=True, 
+#             expire_after=dt(year=2022, month=7, day=28),   #"28/06/2022", # this  parameter is the costliest in performance
+#             reassign=False,
+#             in_choice=["Come", "Go", "Stay"],
+#             enable_async=True
+#             )
+#     run('LOL(xyz="Come")')
     # print(timeit('LOL(xyz="Come")', globals=globals(), number=100000))
     # l = LOL(xyz="Come")
     # print(l)

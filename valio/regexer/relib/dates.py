@@ -303,8 +303,8 @@ def get_date(date_str):
                 date_dict = dict(span=[start, end], **text, **dt)
                 yield date_dict
 
-#
 # if __name__ == '__main__':
+#     print(ind_date | eu_date )
 #     get_date("2020/feb/29")
 #     get_date("date: 2021/01/31, 20/01/2001")
 #     get_date("Date: 2021/12/31, 20/12/2001")

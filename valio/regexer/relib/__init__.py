@@ -4,6 +4,7 @@
 # https://opensource.org/licenses/MITs
 
 from .aadhaarcard import *
+from .colors import *
 from .control_chars import *
 from .dates import *
 from .emails import *

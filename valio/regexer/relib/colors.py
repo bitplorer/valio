@@ -1,5 +1,21 @@
-from valito.regexer.regexps import Pattern, NonCapturingGroup, SetOf, CapturingGroup, WordBoundary
-from valito.regexer.relib.special_chars import pound_sign
+# Copyright (c) 2022 Valio
+# 
+# This software is released under the MIT License.
+# https://opensource.org/licenses/MIT
+
+
+from valio.regexer.regexps import (CapturingGroup, NonCapturingGroup, Pattern,
+                                   SetOf, WordBoundary)
+from valio.regexer.relib.special_chars import pound_sign
+
+__all__ = [
+    "r_hex_short",
+    "r_hex_long",
+    "r_rgb",
+    "r_rgba",
+    "r_hsl",
+    "r_hsla"
+]
 
 space = Pattern(r"\s", count_min=0)
 zx = Pattern(r"0x")
@@ -27,13 +43,23 @@ decimal_optional = NonCapturingGroup(Pattern(r"\.") & Pattern(r"\d", count_min=1
 O_255 = WordBoundary(((O_1 & O_99) & decimal_optional) | ((_2 & O_55) & decimal_optional))
 _r_255 = fr'(\d{1,3}{decimal_optional})'
 _r_comma = space & Pattern(r",") & space
+
+#####################################################################################
 r_rgb = fr'{space}rgb\({space}{_r_255}{_r_comma}{_r_255}{_r_comma}{_r_255}\){space}'
+#####################################################################################
+
 _r_alpha = fr'(\d{decimal_optional}|\.\d+|\d{1,2}%)'
+
+###################################################################################################################
 r_rgba = fr'{space}rgba\({space}{_r_255}{_r_comma}{_r_255}{_r_comma}{_r_255}{_r_comma}{_r_alpha}{space}\){space}'
+###################################################################################################################
 _r_h = fr'(-?\d+{decimal_optional}|-?\.\d+)(deg|rad|turn)?'
 _r_sl = fr'(\d{1,3}{decimal_optional})%'
+
+############################################################################################################
 r_hsl = fr'{space}hsl\({space}{_r_h}{_r_comma}{_r_sl}{_r_comma}{_r_sl}{space}\){space}'
 r_hsla = fr'{space}hsl\({space}{_r_h}{_r_comma}{_r_sl}{_r_comma}{_r_sl}{_r_comma}{_r_alpha}{space}\){space}'
+############################################################################################################
 
 # colors where the two hex characters are the same, if all colors match this the short version of hex colors can be used
 repeat_colors = {int(c * 2, 16) for c in '0123456789abcdef'}
