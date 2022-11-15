@@ -139,7 +139,7 @@ class Logger(object):
         return folder_path
 
     def get_logger(self, subdir=None, record_prefix=None):
-        if self.logger is None or True:
+        if self.logger in [None, True]:
             module_name = os.path.splitext(
                 os.path.basename(sys.modules["__main__"].__file__)
             )[0]
