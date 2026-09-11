@@ -1004,7 +1004,7 @@ class ExpiryValidator(ValidateProperty):
         date_pattern = PatternValidator(pattern=dates, debug=debug, name="expiry")
         reassign_date = ReassignValidator(reassign=False, debug=debug, name="expiry")
         reassign_timeline = ReassignValidator(reassign=False, debug=debug, name="timeline")
-        if not any([expire_before, expire_on, expire_before]):
+        if expire_after is None and expire_on is None and expire_before is None:
             self.expiry = None
             self.timeline = None
             
@@ -1028,7 +1028,7 @@ class ExpiryValidator(ValidateProperty):
 
         if expire_before is not None:
             reassign_date.validate(value=expire_before)
-            if isinstance(expire_after, str):
+            if isinstance(expire_before, str):
                 date_pattern.validate(value=expire_before)
             self.expiry = expire_before
 
