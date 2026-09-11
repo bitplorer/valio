@@ -108,8 +108,13 @@ def is_card_of_rupay(card_number: str):
 
 
 def is_valid_payment_card(card_number: str):
-    return luhn_correctness(card_number) \
-           and Regex((visa | mastercard | amex | discover | rupay).pattern).scanString(card_number)
+    return (
+        is_card_of_visa(card_number)
+        or is_card_of_mastercard(card_number)
+        or is_card_of_amex(card_number)
+        or is_card_of_discover(card_number)
+        or is_card_of_rupay(card_number)
+    )
 
 
 backslash = Pattern(r"\/", alias="/")
