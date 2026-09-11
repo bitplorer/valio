@@ -185,8 +185,42 @@ class TestClassProperty(unittest.TestCase):
         self.assertIsNotNone(self.test_class.prop)
         del self.test_class.prop
         self.assertIsNone(self.test_class.prop)
-        
-        
+
+
+class TestFalsyAssignedValueKeepsDefaultOut(unittest.TestCase):
+    """E14: assigned 0 / False / '' must not be replaced by default."""
+
+    def test_zero_is_not_replaced_by_integer_default(self):
+        from valio import IntegerValidator
+
+        @dataclass
+        class N(object):
+            n: int = IntegerValidator(default=5, debug=True, logger=False)
+
+        self.assertEqual(N(n=0).n, 0)
+        self.assertEqual(N().n, 5)
+
+    def test_false_is_not_replaced_by_boolean_default(self):
+        from valio import BooleanValidator
+
+        @dataclass
+        class B(object):
+            flag: bool = BooleanValidator(default=True, debug=True, logger=False)
+
+        self.assertIs(B(flag=False).flag, False)
+        self.assertIs(B().flag, True)
+
+    def test_empty_string_is_not_replaced_by_string_default(self):
+        from valio import StringValidator
+
+        @dataclass
+        class S(object):
+            s: str = StringValidator(default="fallback", debug=True, logger=False)
+
+        self.assertEqual(S(s="").s, "")
+        self.assertEqual(S().s, "fallback")
+
+
 if __name__ == '__main__':
     unittest.main()
         

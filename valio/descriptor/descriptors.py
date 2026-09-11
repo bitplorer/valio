@@ -259,9 +259,8 @@ class Property(loggers.Logger):
             logger.info(f"setting: {class_name}.{attr_name}")
         
         try:
-            value = value or (self.default \
-                if not callable(self.default) else self.default()) \
-                if self.default is not None else value
+            if value is None and self.default is not None:
+                value = self.default() if callable(self.default) else self.default
             value = self.pre_set(obj, value)
             obj.__dict__[self.name] = value
             if logger:
