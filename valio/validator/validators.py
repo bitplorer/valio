@@ -1708,9 +1708,8 @@ class StringValidator(Validator):
 class HexShortColorValidator(StringValidator):
 
     def validate(self, instance=None, value=None):
-        self.add_validator(self._validate_hex_short_color_pattern,
-                           namespace=instance.__class__.__name__ if instance is not None else None)
         super(HexShortColorValidator, self).validate(instance=instance, value=value)
+        self._validate_hex_short_color_pattern(instance, value)
 
     def _validate_hex_short_color_pattern(self, instance, value):
         if not re.compile(relib.r_hex_short.pattern, re.IGNORECASE).fullmatch(value):
@@ -1720,9 +1719,8 @@ class HexShortColorValidator(StringValidator):
 class HexLongColorValidator(StringValidator):
 
     def validate(self, instance=None, value=None):
-        self.add_validator(self._validate_hex_long_color_pattern,
-                           namespace=instance.__class__.__name__ if instance is not None else None)
         super(HexLongColorValidator, self).validate(instance=instance, value=value)
+        self._validate_hex_long_color_pattern(instance, value)
 
     def _validate_hex_long_color_pattern(self, instance, value):
         if not re.compile(relib.r_hex_long.pattern, re.IGNORECASE).fullmatch(value):
@@ -1732,9 +1730,8 @@ class HexLongColorValidator(StringValidator):
 class HexColorValidator(StringValidator):
 
     def validate(self, instance=None, value=None):
-        self.add_validator(self._validate_hex_short_or_hex_long_color_pattern,
-                           namespace=instance.__class__.__name__ if instance is not None else None)
         super(HexColorValidator, self).validate(instance=instance, value=value)
+        self._validate_hex_short_or_hex_long_color_pattern(instance, value)
 
     def _validate_hex_short_or_hex_long_color_pattern(self, instance, value):
         if not re.compile((relib.r_hex_long | relib.r_hex_short).pattern, re.IGNORECASE).fullmatch(value):
@@ -1744,9 +1741,8 @@ class HexColorValidator(StringValidator):
 class RGBOrRGBAColorValidator(StringValidator):
 
     def validate(self, instance=None, value=None):
-        self.add_validator(self._validate_rgb_or_rgba_color_pattern,
-                           namespace=instance.__class__.__name__ if instance is not None else None)
         super(RGBOrRGBAColorValidator, self).validate(instance=instance, value=value)
+        self._validate_rgb_or_rgba_color_pattern(instance, value)
 
     def _validate_rgb_or_rgba_color_pattern(self, instance, value):
         if not re.compile((relib.r_rgb | relib.r_rbga).pattern, re.IGNORECASE).fullmatch(value):
@@ -1757,9 +1753,8 @@ class RGBOrRGBAColorValidator(StringValidator):
 class HSLOrHSLAColorValidator(StringValidator):
 
     def validate(self, instance=None, value=None):
-        self.add_validator(self._validate_hsl_or_hsla_color_pattern,
-                           namespace=instance.__class__.__name__ if instance is not None else None)
         super(HSLOrHSLAColorValidator, self).validate(instance=instance, value=value)
+        self._validate_hsl_or_hsla_color_pattern(instance, value)
 
     def _validate_hsl_or_hsla_color_pattern(self, instance, value):
         if not re.compile((relib.r_rgb | relib.r_rbga).pattern, re.IGNORECASE).fullmatch(value):
@@ -1897,9 +1892,8 @@ class PaymentCardValidator(StringValidator):
         )
 
     def validate(self, instance=None, value=None):
-        self.add_validator(self._validate_payment_card,
-                           namespace=instance.__class__.__name__ if instance is not None else None)
         super(PaymentCardValidator, self).validate(instance=instance, value=value)
+        self._validate_payment_card(instance, value)
 
     def _validate_payment_card(self, instance=None, value=None):  # noqa
         if value is not None:
@@ -1934,9 +1928,8 @@ class PhoneNumberValidator(StringValidator):
         )
 
     def validate(self, instance=None, value=None):
-        self.add_validator(self._validate_phone_number,
-                           namespace=instance.__class__.__name__ if instance is not None else None)
         super(PhoneNumberValidator, self).validate(instance=instance, value=value)
+        self._validate_phone_number(instance, value)
 
     def _validate_phone_number(self, instance=None, value=None):  # noqa
         if value is not None:
@@ -1978,9 +1971,8 @@ class PathValidator(StringValidator):
         )
 
     def validate(self, instance=None, value=None):
-        self.add_validator(self._validate_file_path,
-                           namespace=instance.__class__.__name__ if instance is not None else None)
         super(PathValidator, self).validate(instance=instance, value=value)
+        self._validate_file_path(instance, value)
 
     def _validate_file_path(self, instance, value):
         if value is not None:
@@ -1997,9 +1989,8 @@ class PathValidator(StringValidator):
 class IP4AddressValidator(StringValidator):
 
     def validate(self, instance=None, value=None):
-        self.add_validator(self._validate_ip4address,
-                           namespace=instance.__class__.__name__ if instance is not None else None)
         super(IP4AddressValidator, self).validate(instance=instance, value=value)
+        self._validate_ip4address(instance, value)
 
     def _validate_ip4address(self, instance, value):
         if value is not None:
@@ -2013,9 +2004,8 @@ class IP4AddressValidator(StringValidator):
 class IP6AddressValidator(StringValidator):
 
     def validate(self, instance=None, value=None):
-        self.add_validator(self._validate_ip6address,
-                           namespace=instance.__class__.__name__ if instance is not None else None)
         super(IP6AddressValidator, self).validate(instance=instance, value=value)
+        self._validate_ip6address(instance, value)
 
     def _validate_ip6address(self, instance, value):
         if value is not None:
@@ -2029,9 +2019,8 @@ class IP6AddressValidator(StringValidator):
 class IPAnyAddressValidator(StringValidator):
 
     def validate(self, instance=None, value=None):
-        self.add_validator(self._validate_ip46address,
-                           namespace=instance.__class__.__name__ if instance is not None else None)
         super(IPAnyAddressValidator, self).validate(instance=instance, value=value)
+        self._validate_ip46address(instance, value)
 
     def _validate_ip46address(self, instance, value):
         if value is not None:
@@ -2065,9 +2054,8 @@ class AadhaarCardValidator(StringValidator):
         )
 
     def validate(self, instance=None, value=None):
-        self.add_validator(self._validate_aadhaar_number,
-                           namespace=instance.__class__.__name__ if instance is not None else None)
         super(AadhaarCardValidator, self).validate(instance=instance, value=value)
+        self._validate_aadhaar_number(instance, value)
 
     def _validate_aadhaar_number(self, instance=None, value=None):  # noqa
         if value is not None:
@@ -2098,9 +2086,8 @@ class PANCardValidator(Validator):
         )
 
     def validate(self, instance=None, value=None):
-        self.add_validator(self._validate_pan,
-                           namespace=instance.__class__.__name__ if instance is not None else None)
         super(PANCardValidator, self).validate(instance=instance, value=value)
+        self._validate_pan(instance, value)
 
     def _validate_pan(self, instance=None, value=None):  # noqa
         if value is not None:
