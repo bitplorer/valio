@@ -741,18 +741,21 @@ class ValueValidator(MinValueValidator, MaxValueValidator):
             name: NAME = None,
             **kwargs,
     ):
-        if all([max_value, lt]):
+        if max_value is not None and lt is not None:
             raise ValueError(f"max_value and lt both can't be initialized, select one")
 
-        if all([min_value, gt]):
+        if min_value is not None and gt is not None:
             raise ValueError("min_value and gt both can't be initialized, select one")
 
-        if all([value, eq]):
+        if value is not None and eq is not None:
             raise ValueError("value and eq both can't be initialized, select one")
 
-        max_value = max_value or lt
-        min_value = min_value or gt
-        value = value or eq
+        if max_value is None:
+            max_value = lt
+        if min_value is None:
+            min_value = gt
+        if value is None:
+            value = eq
 
         if min_value is not None and max_value is not None:
             if max_value < min_value:  # type: ignore
@@ -764,7 +767,7 @@ class ValueValidator(MinValueValidator, MaxValueValidator):
                 raise ValueError(f"{'value' if eq is None else 'eq'} can not be less than "
                                  f"{'min_value' if gt is None else 'gt'}")
 
-        if max_value is not None or value is not None:
+        if max_value is not None and value is not None:
             if max_value < value:  # type: ignore
                 raise ValueError(f"{'value' if eq is None else 'eq'} can not be more than "
                                  f"{'max_value' if lt is None else 'lt'}")
@@ -1662,7 +1665,7 @@ class FloatValidator(Validator):
 class DecimalValidator(Validator):
     multiple_of: DECIMAL = TypeValidator(logger=False, debug=True)
     min_value: DECIMAL = TypeValidator(logger=False, debug=True)
-    value: DEBUG = TypeValidator(logger=False, debug=True)
+    value: DECIMAL = TypeValidator(logger=False, debug=True)
     max_value: DECIMAL = TypeValidator(logger=False, debug=True)
     annotation = DECIMAL
 
