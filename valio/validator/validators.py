@@ -1665,7 +1665,7 @@ class FloatValidator(Validator):
 class DecimalValidator(Validator):
     multiple_of: DECIMAL = TypeValidator(logger=False, debug=True)
     min_value: DECIMAL = TypeValidator(logger=False, debug=True)
-    value: DEBUG = TypeValidator(logger=False, debug=True)
+    value: DECIMAL = TypeValidator(logger=False, debug=True)
     max_value: DECIMAL = TypeValidator(logger=False, debug=True)
     annotation = DECIMAL
 
