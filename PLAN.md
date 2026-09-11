@@ -54,7 +54,7 @@ validators must enforce their namesake when `debug=True`.
 | **E14** | **P0** | `Property.__set__` uses `value or default`. Falsy assigned values are replaced. Data loss for every field with a default. | `descriptors.py` ~263–264. Probe: `IntegerValidator(default=5, debug=True)` → `N(n=0).n == 5`. Same for `BooleanValidator(default=True)` + `False`, `StringValidator(default='fallback')` + `''` | One line: apply default only when `value is None`. Tests for `0` / `False` / `''` with default |
 | **E13** | **P0** | `PaymentCardValidator` claims card validation. `is_valid_payment_card` is `luhn and Regex(...).scanString(...)`. `scanString` returns a **generator**, always truthy. Any Luhn-valid digit string passes, including `0000000000000000` and `79927398713`. Brand matchers already do Luhn + `re_match`. | `paymentcards.py` 110–112 vs 85–107. Probe: `PaymentCardValidator(debug=True)` accepts both non-brand Luhn numbers; rejects only Luhn-fail `4111111111111112` | Reuse in-tree brand helpers (`is_card_of_*`). No new card scheme |
 | **E15** | **P1** | Named validators call `self.add_validator(...)` **inside** `validate()`. Each assignment appends another copy. Grows without bound; runs N times on the Nth set. | `validators.py` Hex/Payment/Phone/Path/IP/Aadhaar/PAN `validate`. Probe: shared `HexColorValidator`, 3 assigns → custom list length 1, 2, 3 | Call the check directly; stop registering on every validate. Same for every named validator that does this |
-| **E16** | **P1** | `ValueValidator.__init__`: `if max_value is not None or value is not None: max_value < value` TypeErrors when only one side is set. Also `max_value or lt` / `value or eq` drop `0`. Hits every `Validator` subclass. | `validators.py` 753–770. Probe: `DecimalValidator(debug=True, value=1)` → `TypeError: '<' not supported between instances of 'NoneType' and 'int'` | Compare only when **both** are not `None`. Bind aliases with `is None`, not `or` |
+| **E16** | **P1** | `ValueValidator.__init__`: `if max_value is not None or value is not None: max_value < value` TypeErrors when only one side is set. Also `max_value or lt` / `value or eq` drop `0`. Hits every `Validator` subclass. `DecimalValidator.value` annotated `DEBUG`. | `validators.py` 753–770, 1665. Probe: `ValueValidator(value=1)` → `TypeError: '<' not supported between instances of 'NoneType' and 'int'` | Compare only when **both** are not `None`. Bind aliases with `is None`, not `or`. `value: DECIMAL` |
 | **E18** | **P1** | `ExpiryValidator`: `expire_before` string pattern check uses `isinstance(expire_after, str)`. `any([expire_before, expire_on, expire_before])` never mentions `expire_after`. | `validators.py` 1004, 1028 | Check `expire_before`; include `expire_after` in the empty test |
 
 ### KEEP
@@ -183,8 +183,10 @@ PY
 
 ```bash
 python - <<'PY'
+from decimal import Decimal
 from valio.validator.validators import DecimalValidator, ValueValidator
-DecimalValidator(debug=True, logger=False, value=1)  # must not TypeError
+DecimalValidator(debug=True, logger=False, value=Decimal("1"))
+ValueValidator(value=1, debug=True, logger=False)  # must not TypeError
 ValueValidator(value=0, max_value=10, debug=True, logger=False)
 print('e16 ok')
 PY
