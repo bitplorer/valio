@@ -1259,12 +1259,13 @@ class TaskValidator(ValidateProperty):
             while self.ok:
                 if self.task_interval:
                     await asyncio.sleep(self.task_interval)
+                task_key = id(tasks)
                 if self.cache_task:
-                    if getattr(self.task, tasks, None) is None:
-                        self.task[tasks] = [await asyncio.create_task(Cor(instance, value))
+                    if self.task.get(task_key) is None:
+                        self.task[task_key] = [await asyncio.create_task(Cor(instance, value))
                                             for Cor in tasks[instance.__class__.__name__]]
 
-                    return self.task[tasks]
+                    return self.task[task_key]
                 else:
                     return [await asyncio.create_task(Cor(instance, value))
                             for Cor in tasks[instance.__class__.__name__]]
@@ -1275,7 +1276,7 @@ class TaskValidator(ValidateProperty):
 
     def cancel(self, tasks):
         self.ok = False
-        self.task[tasks] = None
+        self.task[id(tasks)] = None
 
     def validate(self, instance=None, value=None):
         pass
@@ -1316,32 +1317,46 @@ class TaskValidator(ValidateProperty):
         return func
 
     def pre_validation_processing(self, instance, value):
-        asyncio.run(main(self._job(instance=instance, value=value, tasks=self._pre_validate_tasks)))
-        super(TaskValidator, self).pre_validation_processing(instance=instance, value=value)
+        value = super(TaskValidator, self).pre_validation_processing(instance=instance, value=value)
+        if any(self._pre_validate_tasks):
+            asyncio.run(main(self._job(instance=instance, value=value, tasks=self._pre_validate_tasks)))
+        return value
 
     def post_validation_processing(self, instance, value):
-        asyncio.run(main(self._job(instance=instance, value=value, tasks=self._post_validate_tasks)))
-        super(TaskValidator, self).post_validation_processing(instance=instance, value=value)
+        value = super(TaskValidator, self).post_validation_processing(instance=instance, value=value)
+        if any(self._post_validate_tasks):
+            asyncio.run(main(self._job(instance=instance, value=value, tasks=self._post_validate_tasks)))
+        return value
 
     def post_set_processing(self, instance, value):
-        asyncio.run(main(self._job(instance=instance, value=value, tasks=self._post_set_tasks)))
-        super(TaskValidator, self).post_set_processing(instance=instance, value=value)
+        value = super(TaskValidator, self).post_set_processing(instance=instance, value=value)
+        if any(self._post_set_tasks):
+            asyncio.run(main(self._job(instance=instance, value=value, tasks=self._post_set_tasks)))
+        return value
 
     def pre_get_processing(self, instance, value):
-        asyncio.run(main(self._job(instance=instance, value=value, tasks=self._pre_get_tasks)))
-        super(TaskValidator, self).pre_get_processing(instance=instance, value=value)
+        value = super(TaskValidator, self).pre_get_processing(instance=instance, value=value)
+        if any(self._pre_get_tasks):
+            asyncio.run(main(self._job(instance=instance, value=value, tasks=self._pre_get_tasks)))
+        return value
 
     def post_get_processing(self, instance, value):
-        asyncio.run(main(self._job(instance=instance, value=value, tasks=self._post_get_tasks)))
-        super(TaskValidator, self).post_get_processing(instance=instance, value=value)
+        value = super(TaskValidator, self).post_get_processing(instance=instance, value=value)
+        if any(self._post_get_tasks):
+            asyncio.run(main(self._job(instance=instance, value=value, tasks=self._post_get_tasks)))
+        return value
 
     def pre_delete_processing(self, instance, value):
-        asyncio.run(main(self._job(instance=instance, value=value, tasks=self._pre_delete_tasks)))
-        super(TaskValidator, self).pre_delete_processing(instance=instance, value=value)
+        value = super(TaskValidator, self).pre_delete_processing(instance=instance, value=value)
+        if any(self._pre_delete_tasks):
+            asyncio.run(main(self._job(instance=instance, value=value, tasks=self._pre_delete_tasks)))
+        return value
 
     def post_delete_processing(self, instance, value):
-        asyncio.run(main(self._job(instance=instance, value=value, tasks=self._post_delete_tasks)))
-        super(TaskValidator, self).post_delete_processing(instance=instance, value=value)
+        value = super(TaskValidator, self).post_delete_processing(instance=instance, value=value)
+        if any(self._post_delete_tasks):
+            asyncio.run(main(self._job(instance=instance, value=value, tasks=self._post_delete_tasks)))
+        return value
 
 
 @dataclass
@@ -1521,7 +1536,7 @@ class Validator(
         self._custom_validators[func_class_name].append(func)
         return func
     
-    def _processing(self, func_default_dict, task_default_dict, instance, value):
+    def _processing(self, func_default_dict, instance, value):
         for func in func_default_dict[instance.__class__.__name__]:
             if self.enable_async:
                 if not asyncio.iscoroutinefunction(func):
@@ -1534,18 +1549,15 @@ class Validator(
                 if asyncio.iscoroutine(value):
                     value = asyncio.run(main(value))[0]
 
-        if any(task_default_dict):
-            asyncio.run(main(self._job(instance=instance, value=value, tasks=task_default_dict)))
-
         return value
 
     def pre_validation_processing(self, instance, value):
-        return self._processing(
-            func_default_dict=self._custom_pre_validator, 
-            task_default_dict=self._pre_validate_tasks, 
-            instance=instance, 
+        value = self._processing(
+            func_default_dict=self._custom_pre_validator,
+            instance=instance,
             value=value
             )
+        return super(Validator, self).pre_validation_processing(instance=instance, value=value)
 
     def add_pre_validator(self, func, namespace=None):
         func_class_name = namespace or str(func.__qualname__).split(".")[0]
@@ -1553,12 +1565,12 @@ class Validator(
         return func
 
     def post_validation_processing(self, instance, value):
-        return self._processing(
-            func_default_dict=self._custom_post_validator, 
-            task_default_dict=self._post_validate_tasks, 
-            instance=instance, 
+        value = self._processing(
+            func_default_dict=self._custom_post_validator,
+            instance=instance,
             value=value
             )
+        return super(Validator, self).post_validation_processing(instance=instance, value=value)
 
     def add_post_validator(self, func, namespace=None):
         func_class_name = namespace or str(func.__qualname__).split(".")[0]
@@ -1566,12 +1578,12 @@ class Validator(
         return func
 
     def post_set_processing(self, instance, value):
-        return self._processing(
-            func_default_dict=self._custom_post_set_processor, 
-            task_default_dict=self._post_set_tasks, 
-            instance=instance, 
+        value = self._processing(
+            func_default_dict=self._custom_post_set_processor,
+            instance=instance,
             value=value
             )
+        return super(Validator, self).post_set_processing(instance=instance, value=value)
         
     def add_post_set(self, func, namespace=None):
         func_class_name = namespace or str(func.__qualname__).split(".")[0]
@@ -1579,12 +1591,12 @@ class Validator(
         return func
 
     def pre_get_processing(self, instance, value):
-        return self._processing(
-            func_default_dict=self._custom_pre_get_processor, 
-            task_default_dict=self._pre_get_tasks, 
-            instance=instance, 
+        value = self._processing(
+            func_default_dict=self._custom_pre_get_processor,
+            instance=instance,
             value=value
             )
+        return super(Validator, self).pre_get_processing(instance=instance, value=value)
         
     def add_pre_get(self, func, namespace=None):
         func_class_name = namespace or str(func.__qualname__).split(".")[0]
@@ -1592,12 +1604,12 @@ class Validator(
         return func
 
     def post_get_processing(self, instance, value):
-        return self._processing(
-            func_default_dict=self._custom_post_get_processor, 
-            task_default_dict=self._post_get_tasks, 
-            instance=instance, 
+        value = self._processing(
+            func_default_dict=self._custom_post_get_processor,
+            instance=instance,
             value=value
             )
+        return super(Validator, self).post_get_processing(instance=instance, value=value)
 
     def add_post_get(self, func, namespace=None):
         func_class_name = namespace or str(func.__qualname__).split(".")[0]
@@ -1605,12 +1617,12 @@ class Validator(
         return func
 
     def pre_delete_processing(self, instance, value):
-        return self._processing(
-            func_default_dict=self._custom_pre_delete_processor, 
-            task_default_dict=self._pre_delete_tasks, 
-            instance=instance, 
+        value = self._processing(
+            func_default_dict=self._custom_pre_delete_processor,
+            instance=instance,
             value=value
             )
+        return super(Validator, self).pre_delete_processing(instance=instance, value=value)
 
     def add_pre_delete(self, func, namespace=None):
         func_class_name = namespace or str(func.__qualname__).split(".")[0]
@@ -1618,12 +1630,12 @@ class Validator(
         return func
 
     def post_delete_processing(self, instance, value):
-        return self._processing(
-            func_default_dict=self._custom_post_delete_processor, 
-            task_default_dict=self._post_delete_tasks, 
-            instance=instance, 
+        value = self._processing(
+            func_default_dict=self._custom_post_delete_processor,
+            instance=instance,
             value=value
             )
+        return super(Validator, self).post_delete_processing(instance=instance, value=value)
 
     def add_post_delete(self, func, namespace=None):
         func_class_name = namespace or str(func.__qualname__).split(".")[0]
