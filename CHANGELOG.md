@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Bound honesty:** `0` is a bound, not unset — gates use `is not None` only (`min_value` / `max_value` / `eq` / `value` / `min_length` / `max_length` / `length` / `multiple_of`). `gt` / `lt` are exclusive (`>` / `<`); `min_value` / `max_value` stay inclusive (`>=` / `<=`); `eq` / `value` stay equality. No exclusive length aliases exist; length `0` is kept the same way. `MultipleValidator` remainder means multiple-of (`value % n == 0`; `multiple_of=0` only accepts `0`). HOLD composable-fields rewrite (Soft #9).
 - **TaskValidator / `_processing`:** processing funcs run in `Validator._processing`; tasks run once in `TaskValidator` after `super()`, which now returns the processed value. `_job` caches by `id(tasks)` so default `cache_task=True` no longer TypeErrors.
 - **E18 / P1:** `ExpiryValidator` pattern-checks `expire_before` itself and includes `expire_after` in the empty-bound test.
 - **E16 / P1:** `ValueValidator` compares min/eq/max only when both sides are set, and binds `lt`/`gt`/`eq` with `is None` so `0` is kept. `DecimalValidator.value` annotation is `DECIMAL` (was `DEBUG`).
