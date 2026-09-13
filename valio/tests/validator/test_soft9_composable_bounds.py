@@ -5,6 +5,7 @@
 
 """Soft #9: readable None-only exclusion; Value/Length compose leaf bounds."""
 
+import ast
 import inspect
 import pathlib
 import unittest
@@ -191,12 +192,13 @@ class TestSoft9SourceLocks(unittest.TestCase):
         self.assertNotIn("and self.min_value\n", src)
         self.assertIn("class ValueValidator(ValidateProperty):", src)
         self.assertIn("class LengthValidator(ValidateProperty):", src)
-        self.assertNotIn(
-            "class ValueValidator(MinValueValidator, MaxValueValidator)", src
-        )
-        self.assertNotIn(
-            "class LengthValidator(MinLengthValidator, MaxLengthValidator)", src
-        )
+        bases = {
+            node.name: [ast.unparse(base) for base in node.bases]
+            for node in ast.parse(src).body
+            if isinstance(node, ast.ClassDef)
+        }
+        self.assertEqual(bases["ValueValidator"], ["ValidateProperty"])
+        self.assertEqual(bases["LengthValidator"], ["ValidateProperty"])
 
     def test_leaf_multiple_of_zero_source_still_honest(self):
         src = inspect.getsource(MultipleValidator._validate_multiple_of)
