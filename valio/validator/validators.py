@@ -378,7 +378,7 @@ class TypeValidator(ValidateProperty):
     ...         if max_value is not None:
     ...             self.max_value = max_value
     ...
-    ...         if all([min_value, max_value]) and max_value < min_value:
+    ...         if all(x is not None for x in (min_value, max_value)) and max_value < min_value:
     ...             raise ValueError(f"max_value can not be less than min_value")
     ...
     ...         super(Ranges, self).__init__()
@@ -623,6 +623,16 @@ class MultipleValidator(ValidateProperty):
                     )
 
 
+def _all_specified(*bounds):
+    """True when every bound is present. None-only; ``0`` is specified.
+
+    Soft #8/#9: prefer ``all(bound is not None for bound in bounds)`` over
+    ``A is not None and B is not None``. Never a truthy-list ``all`` of
+    bound values or ``if self.min_value`` — those drop a legitimate ``0``.
+    """
+    return all(bound is not None for bound in bounds)
+
+
 @dataclass
 class MinValueValidator(ValidateProperty):
     min_value: VALUE = TypeValidator(logger=False, debug=True)
@@ -636,7 +646,7 @@ class MinValueValidator(ValidateProperty):
             name: NAME = None,
             **kwargs,
     ):
-        if min_value is not None and gt is not None:
+        if _all_specified(min_value, gt):
             raise ValueError("min_value and gt both can't be initialized, select one")
         
         self.min_value = min_value
@@ -704,7 +714,7 @@ class MaxValueValidator(ValidateProperty):
             **kwargs,
     ):
 
-        if max_value is not None and lt is not None:
+        if _all_specified(max_value, lt):
             raise ValueError(f"max_value and lt both can't be initialized, select one")
         
         self.max_value = max_value
@@ -759,7 +769,18 @@ class MaxValueValidator(ValidateProperty):
 
 
 @dataclass
-class ValueValidator(MinValueValidator, MaxValueValidator):
+class ValueValidator(ValidateProperty):
+    """Inclusive min/max, exclusive gt/lt, and exact value/eq.
+
+    Soft #9: composes MinValueValidator / MaxValueValidator instead of
+    inheriting both. Dual inheritance made a single bound-field annotation
+    change ripple through Validator's MRO. Public constructor and attributes
+    KEEP; leaf ``_validate_*`` methods own the checks.
+
+    Retired inherit path: ``class ValueValidator(MinValueValidator, MaxValueValidator)``.
+    """
+    min_value: VALUE = TypeValidator(logger=False, debug=True)
+    max_value: VALUE = TypeValidator(logger=False, debug=True)
     value: VALUE = TypeValidator(logger=False, debug=True)
 
     def __init__(
@@ -775,57 +796,68 @@ class ValueValidator(MinValueValidator, MaxValueValidator):
             name: NAME = None,
             **kwargs,
     ):
-        if max_value is not None and lt is not None:
+        if _all_specified(max_value, lt):
             raise ValueError(f"max_value and lt both can't be initialized, select one")
 
-        if min_value is not None and gt is not None:
+        if _all_specified(min_value, gt):
             raise ValueError("min_value and gt both can't be initialized, select one")
 
-        if value is not None and eq is not None:
+        if _all_specified(value, eq):
             raise ValueError("value and eq both can't be initialized, select one")
 
         if value is None:
             value = eq
 
-        if min_value is not None and max_value is not None:
-            if max_value < min_value:  # type: ignore
-                raise ValueError(f"max_value can not be less than min_value")
+        if _all_specified(min_value, max_value) and max_value < min_value:  # type: ignore
+            raise ValueError(f"max_value can not be less than min_value")
 
-        if gt is not None and lt is not None:
-            if lt < gt:  # type: ignore
-                raise ValueError(f"lt can not be less than gt")
+        if _all_specified(gt, lt) and lt < gt:  # type: ignore
+            raise ValueError(f"lt can not be less than gt")
 
-        if min_value is not None and value is not None:
-            if value < min_value:  # type: ignore
-                raise ValueError(f"{'value' if eq is None else 'eq'} can not be less than "
-                                 f"min_value")
+        if _all_specified(min_value, value) and value < min_value:  # type: ignore
+            raise ValueError(f"{'value' if eq is None else 'eq'} can not be less than "
+                             f"min_value")
 
-        if gt is not None and value is not None:
-            if value <= gt:  # type: ignore
-                raise ValueError(f"{'value' if eq is None else 'eq'} can not be less than "
-                                 f"or equal to gt")
+        if _all_specified(gt, value) and value <= gt:  # type: ignore
+            raise ValueError(f"{'value' if eq is None else 'eq'} can not be less than "
+                             f"or equal to gt")
 
-        if max_value is not None and value is not None:
-            if max_value < value:  # type: ignore
-                raise ValueError(f"{'value' if eq is None else 'eq'} can not be more than "
-                                 f"max_value")
+        if _all_specified(max_value, value) and max_value < value:  # type: ignore
+            raise ValueError(f"{'value' if eq is None else 'eq'} can not be more than "
+                             f"max_value")
 
-        if lt is not None and value is not None:
-            if value >= lt:  # type: ignore
-                raise ValueError(f"{'value' if eq is None else 'eq'} can not be more than "
-                                 f"or equal to lt")
+        if _all_specified(lt, value) and value >= lt:  # type: ignore
+            raise ValueError(f"{'value' if eq is None else 'eq'} can not be more than "
+                             f"or equal to lt")
+
+        self.min_value = min_value
+        self.gt = gt
+        self.max_value = max_value
+        self.lt = lt
         self.value = value
 
         super(ValueValidator, self).__init__(
-            min_value=min_value,
-            gt=gt,
-            max_value=max_value,
-            lt=lt,
             debug=debug,
             doc=doc,
             name=name,
             **kwargs,
         )
+        try:
+            if self.max_value is not None:
+                if self.doc is not None:
+                    self.doc += f", max_value: {self.max_value!r}"
+                else:
+                    self.doc = f"max_value: {self.max_value!r}"
+        except KeyError as ke:
+            pass
+        try:
+            if self.min_value is not None:
+                if self.doc is not None:
+                    self.doc += f", min_value: {self.min_value!r}"
+                else:
+                    self.doc = f"min_value: {self.min_value!r}"
+        except KeyError as ke:
+            pass
         try:
             if self.value is not None:
                 if self.doc is not None:
@@ -837,6 +869,12 @@ class ValueValidator(MinValueValidator, MaxValueValidator):
         
     def validate(self, instance=None, value=None):
         self._validate_value(instance, value)
+
+    def _validate_min_value(self, instance, value):
+        return MinValueValidator._validate_min_value(self, instance, value)
+
+    def _validate_max_value(self, instance, value):
+        return MaxValueValidator._validate_max_value(self, instance, value)
 
     def _validate_value(self, instance, value):
         self._validate_min_value(instance, value)
@@ -958,7 +996,17 @@ class MaxLengthValidator(ValidateProperty):
 
 
 @dataclass
-class LengthValidator(MinLengthValidator, MaxLengthValidator):
+class LengthValidator(ValidateProperty):
+    """Exact length plus inclusive min/max length.
+
+    Soft #9: composes MinLengthValidator / MaxLengthValidator instead of
+    inheriting both. Public constructor and attributes KEEP; leaf
+    ``_validate_*`` methods own the checks.
+
+    Retired inherit path: ``class LengthValidator(MinLengthValidator, MaxLengthValidator)``.
+    """
+    min_length: INT = TypeValidator(logger=False, debug=True)
+    max_length: INT = TypeValidator(logger=False, debug=True)
     length: INT = TypeValidator(logger=False, debug=True)
 
     def __init__(
@@ -971,28 +1019,41 @@ class LengthValidator(MinLengthValidator, MaxLengthValidator):
             name: NAME = None,
             **kwargs,
     ):
-        if min_length is not None and max_length is not None:
-            if max_length < min_length:  # type: ignore
-                raise ValueError(f"max_length can not be less than min_length")
+        if _all_specified(min_length, max_length) and max_length < min_length:  # type: ignore
+            raise ValueError(f"max_length can not be less than min_length")
 
-        if min_length is not None and length is not None:
-            if length < min_length:  # type: ignore
-                raise ValueError(f"length can not be less than min_length")
+        if _all_specified(min_length, length) and length < min_length:  # type: ignore
+            raise ValueError(f"length can not be less than min_length")
 
-        if max_length is not None and length is not None:
-            if max_length < length:  # type: ignore
-                raise ValueError(f"length can not be more than max_length")
-        
+        if _all_specified(max_length, length) and max_length < length:  # type: ignore
+            raise ValueError(f"length can not be more than max_length")
+
+        self.min_length = min_length
+        self.max_length = max_length
         self.length = length
         
         super(LengthValidator, self).__init__(
-            min_length=min_length,
-            max_length=max_length,
             debug=debug,
             doc=doc,
             name=name,
             **kwargs,
         )
+        try:
+            if self.max_length is not None:
+                if self.doc is not None:
+                    self.doc += f", max_length: {self.max_length}"
+                else:
+                    self.doc = f"max_length: {self.max_length}"
+        except KeyError as ke:
+            pass
+        try:
+            if self.min_length is not None:
+                if self.doc is not None:
+                    self.doc += f", min_length: {self.min_length}"
+                else:
+                    self.doc = f"min_length: {self.min_length}"
+        except KeyError as ke:
+            pass
         try:
             if self.length is not None:
                 if self.doc is not None:
@@ -1004,6 +1065,12 @@ class LengthValidator(MinLengthValidator, MaxLengthValidator):
         
     def validate(self, instance=None, value=None):
         self._validate_length(instance, value)
+
+    def _validate_min_length(self, instance, value):
+        return MinLengthValidator._validate_min_length(self, instance, value)
+
+    def _validate_max_length(self, instance, value):
+        return MaxLengthValidator._validate_max_length(self, instance, value)
 
     def _validate_length(self, instance, value):
         self._validate_min_length(instance=instance, value=value)
