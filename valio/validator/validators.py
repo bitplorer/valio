@@ -606,12 +606,16 @@ class MultipleValidator(ValidateProperty):
         except KeyError as ke:
             pass
         
-        if multiple_of is not None and multiple_of:
+        if multiple_of is not None:
             if logger := self.logger:
                 logger.info(f"{self.name}: Multiple of :{multiple_of}")
 
             if value is not None:
-                if not (value//self.multiple_of) == 0:
+                if multiple_of == 0:
+                    is_multiple = value == 0
+                else:
+                    is_multiple = value % multiple_of == 0
+                if not is_multiple:
                     raise ValueError(
                         f"{self.name} "
                         f"expect the value multiple of {multiple_of}, "
@@ -632,10 +636,11 @@ class MinValueValidator(ValidateProperty):
             name: NAME = None,
             **kwargs,
     ):
-        if all([min_value, gt]):
+        if min_value is not None and gt is not None:
             raise ValueError("min_value and gt both can't be initialized, select one")
         
-        self.min_value = min_value or gt
+        self.min_value = min_value
+        self.gt = gt
         
         super(MinValueValidator, self).__init__(debug=debug, doc=doc, name=name, **kwargs)
         try:
@@ -652,21 +657,35 @@ class MinValueValidator(ValidateProperty):
 
     def _validate_min_value(self, instance, value):
         min_value = None
+        gt = None
         try:
-            if self.min_value is not None and self.min_value:
+            if self.min_value is not None:
                 min_value = self.min_value
         except KeyError as ke:
             pass
+        try:
+            if self.gt is not None:
+                gt = self.gt
+        except KeyError as ke:
+            pass
         
-        if min_value is not None:
-            if logger := self.logger:
-                logger.info(f"{self.name}: MinValue: min_value = {min_value}")
-            
-            if value is not None:
+        if value is not None:
+            if min_value is not None:
+                if logger := self.logger:
+                    logger.info(f"{self.name}: MinValue: min_value = {min_value}")
                 if value < min_value:
                     raise ValueError(
                         f"{self.name} "
                         f"expect the minimum value of {min_value}, "
+                        f"got {value} instead"
+                    )
+            if gt is not None:
+                if logger := self.logger:
+                    logger.info(f"{self.name}: MinValue: gt = {gt}")
+                if value <= gt:
+                    raise ValueError(
+                        f"{self.name} "
+                        f"expect a value greater than {gt}, "
                         f"got {value} instead"
                     )
 
@@ -685,10 +704,11 @@ class MaxValueValidator(ValidateProperty):
             **kwargs,
     ):
 
-        if all([max_value, lt]):
+        if max_value is not None and lt is not None:
             raise ValueError(f"max_value and lt both can't be initialized, select one")
         
-        self.max_value = max_value or lt
+        self.max_value = max_value
+        self.lt = lt
 
         super(MaxValueValidator, self).__init__(debug=debug, doc=doc, name=name, **kwargs)
         try:
@@ -705,21 +725,35 @@ class MaxValueValidator(ValidateProperty):
 
     def _validate_max_value(self, instance, value):  # noqa
         max_value = None
+        lt = None
         try:
-            if self.max_value is not None and self.max_value:
+            if self.max_value is not None:
                 max_value = self.max_value
         except KeyError as ke:
             pass
+        try:
+            if self.lt is not None:
+                lt = self.lt
+        except KeyError as ke:
+            pass
         
-        if max_value is not None:
-            if logger := self.logger:
-                logger.info(f"{self.name}: MaxValue: " f"max_value = {max_value}")
-        
-            if value is not None:
+        if value is not None:
+            if max_value is not None:
+                if logger := self.logger:
+                    logger.info(f"{self.name}: MaxValue: " f"max_value = {max_value}")
                 if value > max_value:
                     raise ValueError(
                         f"{self.name} "
                         f"expect the maximum value of {max_value}, "
+                        f"got {value} instead"
+                    )
+            if lt is not None:
+                if logger := self.logger:
+                    logger.info(f"{self.name}: MaxValue: " f"lt = {lt}")
+                if value >= lt:
+                    raise ValueError(
+                        f"{self.name} "
+                        f"expect a value less than {lt}, "
                         f"got {value} instead"
                     )
 
@@ -750,32 +784,43 @@ class ValueValidator(MinValueValidator, MaxValueValidator):
         if value is not None and eq is not None:
             raise ValueError("value and eq both can't be initialized, select one")
 
-        if max_value is None:
-            max_value = lt
-        if min_value is None:
-            min_value = gt
         if value is None:
             value = eq
 
         if min_value is not None and max_value is not None:
             if max_value < min_value:  # type: ignore
-                raise ValueError(f"{'max_value' if lt is None else 'lt'} can not be less than "
-                                 f"{'min_value' if gt is None else 'gt'}")
+                raise ValueError(f"max_value can not be less than min_value")
+
+        if gt is not None and lt is not None:
+            if lt < gt:  # type: ignore
+                raise ValueError(f"lt can not be less than gt")
 
         if min_value is not None and value is not None:
             if value < min_value:  # type: ignore
                 raise ValueError(f"{'value' if eq is None else 'eq'} can not be less than "
-                                 f"{'min_value' if gt is None else 'gt'}")
+                                 f"min_value")
+
+        if gt is not None and value is not None:
+            if value <= gt:  # type: ignore
+                raise ValueError(f"{'value' if eq is None else 'eq'} can not be less than "
+                                 f"or equal to gt")
 
         if max_value is not None and value is not None:
             if max_value < value:  # type: ignore
                 raise ValueError(f"{'value' if eq is None else 'eq'} can not be more than "
-                                 f"{'max_value' if lt is None else 'lt'}")
+                                 f"max_value")
+
+        if lt is not None and value is not None:
+            if value >= lt:  # type: ignore
+                raise ValueError(f"{'value' if eq is None else 'eq'} can not be more than "
+                                 f"or equal to lt")
         self.value = value
 
         super(ValueValidator, self).__init__(
             min_value=min_value,
+            gt=gt,
             max_value=max_value,
+            lt=lt,
             debug=debug,
             doc=doc,
             name=name,
@@ -798,7 +843,7 @@ class ValueValidator(MinValueValidator, MaxValueValidator):
         self._validate_max_value(instance, value)
         of_value = None
         try:
-            if self.value is not None and self.value:
+            if self.value is not None:
                 of_value = self.value
         except KeyError as ke:
             pass
@@ -844,7 +889,7 @@ class MinLengthValidator(ValidateProperty):
     def _validate_min_length(self, instance, value):  # noqa
         min_length = None
         try:
-            if self.min_length is not None and self.min_length:
+            if self.min_length is not None:
                 min_length = self.min_length
         except KeyError as ke:
             pass 
@@ -893,7 +938,7 @@ class MaxLengthValidator(ValidateProperty):
     def _validate_max_length(self, instance, value):  # noqa
         max_length = None 
         try:
-            if self.max_length is not None and self.max_length:
+            if self.max_length is not None:
                 max_length = self.max_length
         except KeyError as ke:
             pass 
@@ -967,7 +1012,7 @@ class LengthValidator(MinLengthValidator, MaxLengthValidator):
         length = None 
         
         try:
-            if self.length is not None and self.length:
+            if self.length is not None:
                 length = self.length
         except KeyError as ke:
             pass 
@@ -1701,22 +1746,37 @@ class StringValidator(Validator):
 
     def _validate_min_value(self, instance, value):
         min_value = None
+        gt = None
         try:
-            if self.min_value is not None and self.min_value:
+            if self.min_value is not None:
                 min_value= self.min_value
         except KeyError as ke:
-            pass 
+            pass
+        try:
+            if self.gt is not None:
+                gt = self.gt
+        except KeyError as ke:
+            pass
         
-        if min_value is not None:
-            if logger := self.logger:
-                logger.info(
-                    f"{self.name}: MinValue: 'min_value = {min_value}'"
-                )
-            if value is not None:
+        if value is not None:
+            if min_value is not None:
+                if logger := self.logger:
+                    logger.info(
+                        f"{self.name}: MinValue: 'min_value = {min_value}'"
+                    )
                 if value < min_value:
                     raise ValueError(
                         f"{self.name} "
                         f"expect the start of string with {min_value} or above, "
+                        f"got {value} as value instead"
+                    ) from None
+            if gt is not None:
+                if logger := self.logger:
+                    logger.info(f"{self.name}: MinValue: 'gt = {gt}'")
+                if value <= gt:
+                    raise ValueError(
+                        f"{self.name} "
+                        f"expect a value greater than {gt}, "
                         f"got {value} as value instead"
                     ) from None
 
