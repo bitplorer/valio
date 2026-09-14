@@ -41,8 +41,11 @@ Merge SHAs (from `gh pr view` + `git log`):
 
 Valio is a descriptor that sits on a dataclass field and runs constraints when Python assigns a value.
 `Property.__set__` (`valio/descriptor/descriptors.py:253`) applies `default` only when the assigned value `is None` (`:262`, Soft #2 / E14), then calls `pre_set`, stores `obj.__dict__[self.name]`, then `post_set`.
+Only the `pre_set` return is stored. `post_set` / `pre_get` / `post_get` / delete return values are ignored (`descriptors.py:264-268`, `:287-300`).
+`__get__` and `__delete__` pass `self.name` into processing, not the stored value (`descriptors.py:287`, `test_task_processing_order.py:76-77` log `("pget_proc", "x")`).
 `ValidateProperty.pre_set` (`valio/validator/validators.py:182`) runs `pre_validation_processing`, then abstract `validate`, then `post_validation_processing`.
 `debug=True` re-raises. `debug` falsy swallows the exception, appends it to `self.errors`, and leaves the attribute unset so later `__get__` reads `None` (`descriptors.py:269-274`, locked by `valio/tests/validator/test_validators.py:55-69`).
+Leaf class attributes such as `required: BOOL = TypeValidator(...)` (`validators.py:418`) mean constructor kwargs are themselves descriptor-validated.
 The product job, from README plus that cycle, is plug-in constraints on dataclass fields (type, required, pattern, bounds, named ID/card/phone/email checks) with optional processing hooks and file logging.
 It is not a pydantic-style model class, not a schema DSL in the live export, and not a fail-closed-by-default parser.
 
@@ -239,7 +242,7 @@ Those three inherit lines are the architecture Soft #9/#10 papered over. They ar
 | Descriptor set/get/delete + debug swallow | `Property` | `descriptors.py:253-329` | #2 default-if-None only (`:262`) |
 | Annotation match (`issubclassx`) | `Property._may_set_or_ensure_annotation_match` | `descriptors.py:157` | no. typingx HOLD |
 | Type check (`isinstancex`) | `TypeValidator._validate_type` | `validators.py:403` | no. typingx HOLD |
-| Required None-check | `RequiredValidator` | `:417` | no. still `and self.required` (`:445`) |
+| Required None-check | `RequiredValidator` | `:417` | no. still `is not None and self.required` (`:445`). For a bool this is the flag. Soft #8 did not touch it |
 | Pattern `re.findall` (substring) | `PatternValidator` | `:489-512` | no. KEEP per PLAN K4 |
 | Reassign-once | `ReassignValidator` | `:516`, helpers `:794-804` | #10 helpers extracted. behavior #7-adjacent |
 | Multiple-of remainder | `MultipleValidator` | `:595-616` | **#8**. `%`; `multiple_of=0` accepts only `0` |
@@ -247,9 +250,9 @@ Those three inherit lines are the architecture Soft #9/#10 papered over. They ar
 | Inclusive max / exclusive lt | `MaxValueValidator` | `:915` | **#8** |
 | Exact value / eq | `ValueValidator` | `:984` | **#5** both-sides compare, **#8** `0`, **#9** compose leaves |
 | Inclusive min/max/exact length | `Min/Max/LengthValidator` | `:1076`, `:1124`, `:1173` | **#8** length `0`, **#9** compose |
-| Expiry after/on/before | `ExpiryValidator` + `_configure_expiry` | `:1265`, `:748` | **#6** `expire_before` pattern, **#10** helper |
-| Choice in / not in | `ChoiceValidator` | `:1347` | no. LOCKED via Soft #10 public-usage |
-| `has_attributes` | `AttributeValidator` | `:1432` | no. still truthy `and self.has_attributes` (`:1459`). not LOCKED |
+| Expiry after/on/before | `ExpiryValidator` + `_configure_expiry` | `:1265`, `:748` | **#6** `expire_before` pattern, **#10** helper. leftover truthy `and self.expiry` (`:1296`) |
+| Choice in / not in | `ChoiceValidator` | `:1347` | no. LOCKED via Soft #10 public-usage. leftover truthy `and self.in_choice` / `and self.not_in_choice` (`:1396`, `:1415`). empty list would skip |
+| `has_attributes` | `AttributeValidator` | `:1432` | no. leftover truthy `and self.has_attributes` (`:1459`). empty list would skip. not LOCKED |
 | Tasks (`asyncio.run` / cache by `id(tasks)`) | `TaskValidator` | `:1476`, `:1489` | **#7** |
 | Processing funcs then tasks | `Validator._processing` + `_after_processing_run_tasks` | `:1835`, `:1850` | **#7**, **#10** (no inherit) |
 | Ordered unique concern path | `_ValidationPath` | `:820` | **#10** |
@@ -257,7 +260,8 @@ Those three inherit lines are the architecture Soft #9/#10 papered over. They ar
 | Hex color fullmatch | `Hex*ColorValidator` | `:2030-2060` | **#4** stop `add_validator` inside `validate` |
 | RGB/RGBA color | `RGBOrRGBAColorValidator` | `:2063` | #4. uses `relib.r_rgb \| r_rbga` (typo `rbga`) |
 | HSL/HSLA color | `HSLOrHSLAColorValidator` | `:2075` | #4. **honesty hole**. `_validate_hsl_or_hsla_color_pattern` compiles `r_rgb \| r_rbga`, not `r_hsl \| r_hsla` (`:2082`) |
-| Date pattern findall | `DateValidator` | `:2087` | no |
+| Date pattern findall | `DateValidator` | `:2087` | no. local copy of `_validate_pattern` (`:2132`). non-str becomes `None` instead of `str(value)` |
+| Field factory + decorator door | `Field` / `*Field` | `fields.py:191+` | no. signature omits `gt`/`lt`/`eq`/`multiple_of`/`in_choice` (only `**kwargs`) |
 | Email pattern | `EmailIDValidator` | `:2169` | no. pattern=`relib.email_pattern` |
 | Payment card brand + Luhn | `PaymentCardValidator` | `:2194`, `paymentcards.py:110` | **#3**, **#4** |
 | Phone (`phonenumbers`, default region IN) | `PhoneNumberValidator` | `:2230` | **#4** |
@@ -266,8 +270,7 @@ Those three inherit lines are the architecture Soft #9/#10 papered over. They ar
 | Aadhaar Verhoeff | `AadhaarCardValidator` | `:2360` | **#4** |
 | PAN regex findall | `PANCardValidator` | `:2392`, `pancard.py` | **#4**. `verify`/`generate` unused teaching |
 | Mapping/Sequence/List/Dict/Set/Tuple/Enum/UUID | typed `*Validator` | `:2152-2445` | annotation only. not LOCKED |
-| Field factory + decorator door | `Field` / `*Field` | `fields.py:191+` | no |
-| Schema v2 regex map on Field | `Schema` | `schemas_v2.py:21` | HOLD dual-schema |
+| Schema v2 regex map on Field | `Schema` | `schemas_v2.py:21` | HOLD dual-schema. `blank=` (`:30`, `:52`) is not `required`. It falls into `Logger.kwargs` |
 | Schema v1 `make_dataclass` | `SchemaValidator` | `schemas.py:34` | parked |
 | Logger files | `Logger` | `loggers.py:29` | no |
 | Pattern combinators | `Pattern` et al. | `regexps.py` | no |
@@ -294,7 +297,7 @@ password_field = valio.StringField(min_length=6, max_length=30, debug=True, requ
 password: str = password_field.validator
 ```
 
-Cites. `README.md:66-128`. `Field.__init__` `fields.py:218`. Schema v2 `__main__` repeats it (`schemas_v2.py:184-197`). Decorators hang on the Field (`@user_field.add_pre_valiator` typo at README `:79`; real `add_pre_validator` at `fields.py:128`).
+Cites. `README.md:66-128`. `Field.__init__` `fields.py:218`. The `Field` signature lists `min_value`/`max_value` but not `gt`/`lt`/`eq`/`multiple_of`/`in_choice`. Those only reach the validator via `**kwargs`. Schema v2 `__main__` repeats Door B (`schemas_v2.py:184-197`). Decorators hang on the Field (`@user_field.add_pre_valiator` typo at README `:79`; real `add_pre_validator` at `fields.py:128`). Zero Field tests.
 
 **Inheritance vs composition.** Pre-Soft, `ValueValidator` dual-inherited min+max and `Validator` 11-way inherited every concern (`5a574a5` lines 728, 913, 1345). Soft #9 made Value/Length subclass `ValidateProperty` only (`validators.py:984`, `:1173`). Soft #10 did the same for `Validator` (`:1581`). Tests lock `issubclass(..., MinValueValidator) is False` (`test_soft9_composable_bounds.py:56-74`, `test_soft10_validation_path.py:84-105`). Typed aliases still subclass `Validator` (`:1971`, test `:89`).
 
@@ -306,7 +309,7 @@ Cites. `README.md:66-128`. `Field.__init__` `fields.py:218`. Schema v2 `__main__
 
 **Shared validator instance.** `test_type_class_validator` documents that one `TypeValidator` reused across classes fails when annotations are not a subclass (`test_validators.py:85-135`). That is LOCKED as a collision, currently ERROR vs expected `RuntimeError`.
 
-**Processing then tasks.** `test_task_processing_order.py:28`. `add_pre_validator` mutates the value. `add_pre_validator_task` observes the mutated value once. Namespace must match the dataclass name (`namespace="Host"`).
+**Processing then tasks.** `test_task_processing_order.py:28`. `add_pre_validator` mutates the value. `add_pre_validator_task` observes the mutated value once. Namespace must match the dataclass name (`namespace="Host"`). Get/delete processors receive the attribute name, not the stored value (`:76-77`).
 
 ## 6. A9 candidates
 
@@ -320,7 +323,7 @@ These are the composition units the library is actually made of. Not a new frame
 
 4. **Validation path.** `_ValidationPath` (`:820`) is an ordered unique list of unit names. `value` owns `min_value`/`max_value`/`eq`. `length` owns `min_length`/`max_length`. Double-call and aggregate+leaf fail closed. A second `validate()` is a new pass (`test_soft10_validation_path.py:134`).
 
-5. **Hook split.** Processors (`_processing`) return a possibly new value. Tasks (`_after_processing_run_tasks`) run once after, cache keyed by `id(tasks)`. Soft #7 exists because these two were the same MRO override.
+5. **Hook split.** Processors (`_processing`) return a possibly new value. Only the `pre_set` pipeline return is stored. Tasks (`_after_processing_run_tasks`) run once after, cache keyed by `id(tasks)`. Get/delete processors see `self.name`, not the stored value. Soft #7 exists because processing and tasks were the same MRO override.
 
 6. **Pattern combinator.** `PatternType` `&` / `|` plus relib named patterns. This is how Email/Date/Card strings are built. pyparsing `Regex` is a matcher, not the combinator.
 
@@ -330,9 +333,9 @@ Field, Schema v2, and typed `*Validator` aliases are facades over 1-5. They are 
 
 User rejected the Soft-patch stack as brittle, fragmented, and ugly. The holes below are why Softs existed. They are not a request for Soft #11.
 
-**Dual doors.** Door A (Validator-as-field) is the tested product. Door B (Field factory + `.validator`) duplicates every kwarg (`fields.py:194-240` vs `Validator.__init__` `:1670`). Schema v2 is a third door on Field (`schemas_v2.py:21`) with a `blank=` kwarg Field may not honor as `required`. README teaches both doors and a typo decorator. ux-valio should pick one caller shape.
+**Dual doors.** Door A (Validator-as-field) is the tested product. Door B (Field factory + `.validator`) duplicates kwargs (`fields.py:194-240` vs `Validator.__init__` `:1670`) and omits `gt`/`lt`/`eq`/`multiple_of`/`in_choice` from the Field signature. Schema v2 is a third door on Field (`schemas_v2.py:21`). `blank=` is not `required`. It lands in `Logger.kwargs`. README teaches both doors and a typo decorator. ux-valio should pick one caller shape.
 
-**Inheritance spaghetti.** Pre-Soft `Validator` inherited eleven concern classes (`5a574a5:1345`). `ValueValidator`/`LengthValidator` dual-inherited min+max (`:728`, `:913`). A bound-field annotation change rippled through the MRO. Soft #9 composed Value/Length. Soft #10 composed Validator. Residue on tip. Method aliases (`Validator._validate_type = TypeValidator._validate_type` at `:1644`), copied task methods (`:1660`), and `StringValidator._validate_min_value` still special-cased (`:2012`). Source-lock tests freeze helper names (`_validation_path`, `_all_specified`, `_enforce_min_bound`).
+**Inheritance spaghetti.** Pre-Soft `Validator` already inherited eleven concern classes (`5a574a5:1345`). Softs did not invent that MRO. They papered over bugs it caused. Class bases did not move in P0/P1 #2-#6 or Soft #7/#8. Soft #9 changed only `ValueValidator` / `LengthValidator` to `(ValidateProperty)`. Soft #10 is the only SHA that changes `class Validator(...)`. Residue on tip is method-copy, not a new object graph (`Validator._validate_type = TypeValidator._validate_type` at `:1644`, copied task methods `:1660`). `StringValidator._validate_min_value` still special-cased (`:2012`). `_validate_field` still collects a results list from side-effecting calls. Path uniqueness is the new gate. Source-lock tests freeze helper names (`_validation_path`, `_all_specified`, `_enforce_min_bound`).
 
 **Soft #8 honesty bugs (must not regress).**
 
@@ -340,7 +343,7 @@ Pre-Soft gates used truthiness. `if self.min_value is not None and self.min_valu
 
 `gt`/`lt` were stored as min/max (`self.min_value = min_value or gt` at `5a574a5` MinValue `__init__`) and checked inclusive (`value < min_value`). After Soft #8, `gt`/`lt` are exclusive (`>` / `<`), `min_value`/`max_value` inclusive (`>=` / `<=`).
 
-`MultipleValidator` used inverted `value//self.multiple_of == 0` (`5a574a5` remainder block) and skipped `multiple_of=0`. After Soft #8, remainder is `value % n == 0`. `multiple_of=0` only accepts `0` (`validators.py:607-610`).
+`MultipleValidator` used inverted `value//self.multiple_of == 0` (`5a574a5` remainder block). That is true for any `|value| < |n|`. It also skipped `multiple_of=0`. After Soft #8, remainder is `value % n == 0`. `multiple_of=0` only accepts `0` (`validators.py:607-610`). `TestMultipleValidator.test_multiple_of_validator` in `test_validators.py` still does not lock `%`. The honesty file does.
 
 RED lock. `valio/tests/validator/test_bound_honesty.py` (15 tests, all ok on this machine).
 
@@ -370,13 +373,13 @@ Soft #10 assembles units on `_ValidationPath`. Public kwargs KEEP. Soft #8/#9 KE
 | #5 E16 | `eb4ce37121431fd425694d61c10a26bc486391ef` | one-sided bound compare TypeError. `DecimalValidator.value` was `DEBUG` |
 | #6 E18 | `a647ad11005d92e4974c1909d18752a6c16e72ad` | `expire_before` pattern-checked `expire_after` |
 
-**Still ugly on tip (not invented Softs).** HSL validator uses RGB patterns (`:2082`). `has_attributes` still truthy-gated (`:1459`). `enable_async` uses `asyncio.run` inside the setter. Logger default-on. Dual Field/Validator/Schema constructors. Star-import barrel. `Dust*` names. Unused `color_format.py`. Schema v1 parked beside v2. Pattern `findall` vs named-color `fullmatch`. Source-lock tests that grep helper identifiers.
+**Still ugly on tip (not invented Softs).** HSL validator uses RGB patterns (`:2082`) plus `r_rbga` (the exported name is `r_rgba`). Soft #8 did not sweep leftover truthy gates on `required` (`:445`), `expiry` (`:1296`), `in_choice` / `not_in_choice` (`:1396`, `:1415`), `has_attributes` (`:1459`). Empty choice/attribute lists would skip. `enable_async` uses `asyncio.run` inside the setter. Logger default-on. Dual Field/Validator/Schema constructors. Star-import barrel. `Dust*` names. Unused `color_format.py`. Schema v1 parked beside v2. Pattern `findall` vs named-color `fullmatch`. Source-lock tests that grep helper identifiers. CHANGELOG Soft #10 says "Regex / rule / dual-schema untouched" with no `rule/` folder in any commit.
 
 ## 8. HOLD surfaces
 
 Do not invent Softs for these. Report what is in tree vs parked.
 
-**Dual-schema.** Both files exist from the initial commit `fd54782348aeb5529e082955b35f7b5b46f9912e`. `valio/schema/__init__.py:8-9` has commented `from .schemas import *` and live `from .schemas_v2 import *` in that same initial commit. v1 (`schemas.py`) builds a `make_dataclass` validator and extra Positive/Negative/Email/Phone/PaymentCard schemas. v2 (`schemas_v2.py`) subclasses `fields.Field`, adds a regex map, and drops those extras. No schema tests. HOLD means do not Soft-patch schema unification on valio. ux-valio may drop both or design one schema door from scratch.
+**Dual-schema.** Both files exist from the initial commit `fd54782348aeb5529e082955b35f7b5b46f9912e`. `valio/schema/__init__.py:8-9` has commented `from .schemas import *` and live `from .schemas_v2 import *` in that same initial commit. v1 (`schemas.py`) is live unused source (286 lines), not a stub. Only the import is parked. v2 (`schemas_v2.py`) subclasses `fields.Field`, adds a regex map, and drops Positive/Negative/Email/Phone/PaymentCard schemas. `blank=` is not wired to `required`. No schema tests. HOLD means do not Soft-patch schema unification on valio. ux-valio may drop both or design one schema door from scratch.
 
 **typingx.** In tree as a runtime dependency (`pyproject.toml:9`). Used. `from typingx import isinstancex` (`validators.py:65`, type check `:408`). `from typingx import issubclassx` (`descriptors.py:13`, annotation match `:174`). Not parked. HOLD means do not Soft-patch a new typing layer or drop the dep as a "cleanup" on valio. ux-valio may keep union-aware checks or replace them with stdlib, but must not silently change `Union` matching (the reused-validator test already collides).
 
@@ -395,7 +398,7 @@ Measured on tip after `pip install typingx phonenumbers pyparsing pytest toml`.
 | File | What it locks |
 | --- | --- |
 | `valio/tests/descriptor/test_descriptors.py` | Property set/get/delete, `__set_name__` docs, **Soft #2** `0`/`False`/`""` not replaced by default (`:190-221`) |
-| `valio/tests/validator/test_validators.py` | version vs poetry, TypeValidator debug-swallow, Required, Pattern `findall`, Reassign, Multiple (pre-#8 remainder cases that still pass) |
+| `valio/tests/validator/test_validators.py` | version vs poetry, TypeValidator debug-swallow, Required, Pattern `findall`, Reassign. `TestMultipleValidator` does **not** lock remainder |
 | `valio/tests/validator/test_payment_card.py` | **#3** Visa test number accepted. Luhn-valid non-brand rejected. Luhn-invalid rejected |
 | `valio/tests/validator/test_named_validate_once.py` | **#4** HexColorValidator custom list does not grow across assigns |
 | `valio/tests/validator/test_value_validator_init.py` | **#5** one-sided `value=` no TypeError. `eq=0` kept. value above max still raises |
@@ -442,8 +445,10 @@ Soft #9/#10 re-lock the same facts on facades (`test_soft9_composable_bounds.py:
 
 - 11-way MRO and the alias-method compose that replaced it. ux-valio should have one composition story, not inherit-then-uninherit.
 - `_all_specified` / `_ValidationPath` / `_enforce_min_bound` as public-ish helpers that tests grep by identifier. Port the behaviors, not the helper names, unless you want those tests.
-- Dual Field vs Validator constructors that copy kwargs. Pick one door.
-- Schema v1 parked next to Schema v2. Pick one or none.
+- Dual Field vs Validator constructors that copy kwargs. Field omits `gt`/`lt`/`eq`/`multiple_of`/`in_choice` from the signature. Pick one door.
+- Schema v1 parked next to Schema v2. `blank=` is not `required`. Pick one or none.
+- Leftover truthy gates on choice/expiry/attributes. Soft #8 was numeric/length/`multiple_of` only. Do not treat empty-list skip as bound honesty.
+- Method-copy compose (`_validate_* = Leaf._validate_*`) and the leftover `_validate_field` results list. Port path uniqueness behavior, not the alias table.
 - `Dust*`, unused `color_format.py`, unused `profile` / `timed_lru_cache`, PAN `generate`/`verify` teaching, schema `__main__` password demos.
 - `Validator.register` cargo-cult. `add_pre_valiator` typo. Do not add aliases.
 - Star-import barrel as the public API. Export an explicit `__all__` in ux-valio.
