@@ -68,8 +68,10 @@ class TestSoft9ValueLengthComposeNotInherit(unittest.TestCase):
         self.assertFalse(issubclass(Validator, MaxValueValidator))
         self.assertFalse(issubclass(Validator, MinLengthValidator))
         self.assertFalse(issubclass(Validator, MaxLengthValidator))
-        self.assertTrue(issubclass(Validator, ValueValidator))
-        self.assertTrue(issubclass(Validator, LengthValidator))
+        # Soft #10 deepen: Validator composes Value/Length too (does not inherit).
+        self.assertFalse(issubclass(Validator, ValueValidator))
+        self.assertFalse(issubclass(Validator, LengthValidator))
+        self.assertTrue(issubclass(Validator, ValidateProperty))
 
 
 class TestSoft9PublicUsageKeep(unittest.TestCase):
